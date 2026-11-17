@@ -132,7 +132,11 @@ State（全站状态）：`items` 数组 + `sort` 排序方式 + `nid` 下一个
 3. `npm run build` 构建前端。
 4. `npm run server` 启动；建表由服务自动完成。
 
-日常开发：`npm run dev` 起前端（Vite 把 `/api` 代理到 8787），另开终端 `npm run server`。
+日常开发（热重载）：
+
+- `npm run dev`：前端 Vite，监听 0.0.0.0:5173，改代码即时热更新；`/api` 自动代理到 8787
+- `npm run dev:server`：后端 Fastify，`node --watch` 改代码自动重启
+- 局域网其他设备经 `http://<本机IP>:5173` 直接访问
 
 ## 9. 已知限制与遗留问题
 
