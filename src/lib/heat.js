@@ -6,13 +6,13 @@
  * 种子生成，今天那一格永远从真实清单里数：勾掉一件，最后一格立刻变深。
  */
 import Kit from './kit.js';
-import { DAY, TODAY, midnight } from './todo.js';
+import { DAY, TODAY, midnight, wdOf } from './todo.js';
 
 export const WEEKS = 18;
 
 /* 从 18 周前的那个周一起算。周一开头是为了和月历对齐 —— 同一份数据的两个视图，
    起点不一样的话，眼睛得在两个坐标系之间换算。 */
-const MON = (new Date(TODAY).getDay() + 6) % 7;
+const MON = (wdOf(TODAY) + 6) % 7;
 export const DAYS = Array.from({ length: WEEKS * 7 },
   (_, k) => midnight(TODAY - (MON + (WEEKS - 1) * 7) * DAY + k * DAY));
 
@@ -20,7 +20,7 @@ const SEEDED = (() => {
   const r = Kit.rng(0x7ad0), h = {};
   for (const ts of DAYS) {
     if (ts >= TODAY) break;
-    const wd = new Date(ts).getDay(), rest = wd === 0 || wd === 6;
+    const wd = wdOf(ts), rest = wd === 0 || wd === 6;
     /* 「有没有做事」和「做了多少」得是两次独立的抽签。同一个 x 既定生死又定
        大小的话，活下来的那些天全挤在阈值上方，整块格子会是一片均匀的中绿。
        y*y 把分布压向低位：多数日子一两件，偶尔一天九件，这才像人过的日子。 */

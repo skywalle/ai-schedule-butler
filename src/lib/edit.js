@@ -2,7 +2,7 @@
    面板居中显示，不走底部 sheet。 */
 import Kit from './kit.js';
 import Tool from './tool.js';
-import { DAY, QUADS, STATUSES, TODAY, WD, fmtDate, midnight, quadOf, statusOf } from './todo.js';
+import { DAY, QUADS, STATUSES, TODAY, WD, dayTs, fmtDate, quadOf, shYmd, statusOf, wdOf } from './todo.js';
 
 const T = Tool, K = Kit;
 
@@ -21,14 +21,13 @@ function scanInput(raw){
 }
 
 /* 宽松解析日期文本：yyyy-mm-dd、yyyy/m/d、yyyymmdd 都归一到当天零点；
-   2 月 30 日这类不存在的日期返回 null。 */
+   2 月 30 日这类不存在的日期返回 null（Luxon 非法日期产出 NaN）。 */
 function parseDateText(s){
   const m = s.trim().match(/^(\d{4})[-/.]?(\d{1,2})[-/.]?(\d{1,2})$/);
   if (!m) return null;
   const y = +m[1], mo = +m[2], d = +m[3];
-  const ts = midnight(new Date(y, mo - 1, d));
-  const chk = new Date(ts);
-  return chk.getFullYear() === y && chk.getMonth() === mo - 1 && chk.getDate() === d ? ts : null;
+  const ts = dayTs(y, mo - 1, d);
+  return Number.isNaN(ts) ? null : ts;
 }
 
 /* 关键字录入框：# 开头，# 后文字匹配已有关键字给出建议；
@@ -132,8 +131,8 @@ export function taskSheet({ title, item, preset = {}, deptList = [], empList = [
 
   /* 小月历：周一开头，点选回填 yyyy-mm-dd，点弹层外收起。 */
   let pop = null;
-  const seed = base.due ? new Date(base.due) : new Date(TODAY);
-  let calY = seed.getFullYear(), calM = seed.getMonth();
+  const seed = shYmd(base.due || TODAY);
+  let calY = seed[0], calM = seed[1];
   const onDocDown = e => { if (pop && !dtWrap.contains(e.target)) closeCal() };
   const closeCal = () => { if (pop){ pop.remove(); pop = null } document.removeEventListener('pointerdown', onDocDown) };
   const paintCal = () => {
@@ -148,13 +147,12 @@ export function taskSheet({ title, item, preset = {}, deptList = [], empList = [
     head.append(prev, T.el('b', { text: calY + '-' + String(calM + 1).padStart(2, '0') }), next, todayBtn);
     const grid = T.el('div', { class:'calpop-grid' });
     WD.forEach(w => grid.appendChild(T.el('span', { class:'wd', text:w })));
-    const first = new Date(calY, calM, 1);
-    const start = midnight(+first - ((first.getDay() + 6) % 7) * DAY);
+    const first = dayTs(calY, calM, 1);
+    const start = first - ((wdOf(first) + 6) % 7) * DAY;
     for (let k = 0; k < 42; k++){
       const ts = start + k * DAY;
-      const d = new Date(ts);
-      const cell = T.el('button', { class:'d', type:'button', text:String(d.getDate()) });
-      if (d.getMonth() !== calM) cell.classList.add('out');
+      const cell = T.el('button', { class:'d', type:'button', text:String(shYmd(ts)[2]) });
+      if (shYmd(ts)[1] !== calM) cell.classList.add('out');
       if (ts === TODAY) cell.classList.add('today');
       if (dt.value === fmtDate(ts)) cell.classList.add('on');
       cell.onclick = () => pick(ts);

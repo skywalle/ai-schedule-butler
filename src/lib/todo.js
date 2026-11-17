@@ -1,14 +1,29 @@
 /* 纯逻辑：日期换算、输入解析、分桶。 */
+import { DateTime } from 'luxon';
+
+/* 全站时区锁死上海：浏览器和服务器设成别的时区，「今天/逾期」也不漂。
+   业务时间戳一律表示上海 wall-clock 的绝对毫秒。上海 UTC+8、无夏令时。 */
+const TZ = 'Asia/Shanghai';
 
 export const DAY = 864e5;
-export const midnight = d => { const x = new Date(d); x.setHours(0,0,0,0); return +x };
+export const midnight = ts => DateTime.fromMillis(+ts, { zone: TZ }).startOf('day').toMillis();
 export const TODAY = midnight(Date.now());
 
 /* 全站统一日期格式 yyyy-mm-dd，例如 2026-01-01。 */
-export const fmtDate = ts => {
-  const d = new Date(ts), p = n => String(n).padStart(2, '0');
-  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+export const fmtDate = ts => DateTime.fromMillis(+ts, { zone: TZ }).toFormat('yyyy-LL-dd');
+
+/* 星期几：0=周日 … 6=周六，与原 getDay() 一致（Luxon 周一=1…周日=7）。 */
+export const wdOf = ts => DateTime.fromMillis(+ts, { zone: TZ }).weekday % 7;
+
+/* 上海日期分量 [年, 月(0基), 日]。 */
+export const shYmd = ts => {
+  const d = DateTime.fromMillis(+ts, { zone: TZ });
+  return [d.year, d.month - 1, d.day];
 };
+
+/* 由年月日构造上海当天零点时间戳；非法日期（如 2 月 30 日）返回 NaN。 */
+export const dayTs = (y, m, d) =>
+  DateTime.fromObject({ year: y, month: m + 1, day: d }, { zone: TZ }).startOf('day').toMillis();
 
 
 /* ── 四象限 ────────────────────────────────────────────────────────────────
@@ -43,9 +58,9 @@ export function parseInput(raw){
     [/后天/, () => TODAY + DAY*2],
     [/下周/, () => TODAY + DAY*7],
     [/(\d{1,2})[\/月-](\d{1,2})[日号]?/, m => {
-      const y = new Date().getFullYear();
-      const d = midnight(new Date(y, +m[1]-1, +m[2]));
-      return d < TODAY ? midnight(new Date(y+1, +m[1]-1, +m[2])) : d;
+      const y = shYmd(Date.now())[0];
+      const d = dayTs(y, +m[1]-1, +m[2]);
+      return d < TODAY ? dayTs(y+1, +m[1]-1, +m[2]) : d;
     }],
   ];
   for (const [re, fn] of rules){

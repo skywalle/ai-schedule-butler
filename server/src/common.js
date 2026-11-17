@@ -1,5 +1,9 @@
 'use strict';
 
+const { DateTime } = require('luxon');
+
+const TZ = 'Asia/Shanghai';
+
 /* 数值型配置先过安全整数校验：端口、连接数传脏值要在启动前暴露。 */
 function toSafeInt(v, dflt, name) {
   if (v === undefined || v === null || v === '') return dflt;
@@ -10,11 +14,9 @@ function toSafeInt(v, dflt, name) {
   return n;
 }
 
-/* 日志与状态记录用本地时间，避免跨时区部署时对照困难。 */
+/* 日志与状态记录锁死上海时区：跨时区部署也能直接对照，不用心算换算。 */
 function formatLocalDateTime(d) {
-  const p = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ` +
-    `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  return DateTime.fromMillis(d.getTime(), { zone: TZ }).toFormat('yyyy-LL-dd HH:mm:ss');
 }
 
 module.exports = { toSafeInt, formatLocalDateTime };

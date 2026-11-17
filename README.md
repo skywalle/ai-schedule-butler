@@ -37,9 +37,9 @@
 
 ```bash
 # 1. 创建数据库与用户（示例）
-# CREATE DATABASE todo_day;
+# CREATE DATABASE `ai-schedule-butler`;
 # CREATE USER 'todo'@'localhost' IDENTIFIED BY '你的密码';
-# GRANT ALL PRIVILEGES ON todo_day.* TO 'todo'@'localhost';
+# GRANT ALL PRIVILEGES ON `ai-schedule-butler`.* TO 'todo'@'localhost';
 
 # 2. 安装依赖（根目录与 server 各一次）
 npm install
@@ -76,7 +76,7 @@ npm run dev:server  # 后端 Fastify，node --watch 自动重启
 | `MYSQL_PORT` | `3306` | 数据库端口 |
 | `MYSQL_USER` | `todo` | 应用账号 |
 | `MYSQL_PASSWORD` | `todo_day` | 应用密码 |
-| `MYSQL_DATABASE` | `todo_day` | 库名 |
+| `MYSQL_DATABASE` | `ai-schedule-butler` | 库名 |
 | `MYSQL_CONNECTION_LIMIT` | `5` | 连接池上限 |
 
 ## API 一览

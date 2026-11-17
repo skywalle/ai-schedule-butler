@@ -16,7 +16,7 @@ function getDbConfig() {
     port: toSafeInt(process.env.MYSQL_PORT, 3306, 'MYSQL_PORT'),
     user: process.env.MYSQL_USER || 'todo',
     password: process.env.MYSQL_PASSWORD || 'todo_day',
-    database: process.env.MYSQL_DATABASE || 'todo_day',
+    database: process.env.MYSQL_DATABASE || 'ai-schedule-butler',
     connectionLimit: toSafeInt(process.env.MYSQL_CONNECTION_LIMIT, 5, 'MYSQL_CONNECTION_LIMIT'),
   };
 }

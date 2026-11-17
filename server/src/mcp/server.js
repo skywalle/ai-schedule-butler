@@ -93,11 +93,11 @@ function shapeItem(item, today, lib) {
   };
 }
 
-/* 显式日期统一走 yyyy-mm-dd，换算成与前端一致的本地零点时间戳。 */
+/* 显式日期统一走 yyyy-mm-dd，换算成与前端一致的上海零点时间戳。 */
 function parseDueDate(str, lib) {
   const m = String(str).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) throw new Error('due 必须是 yyyy-mm-dd 格式: ' + str);
-  const ts = lib.midnight(new Date(+m[1], +m[2] - 1, +m[3]));
+  const ts = lib.dayTs(+m[1], +m[2] - 1, +m[3]);
   if (Number.isNaN(ts)) throw new Error('due 不是合法日期: ' + str);
   return ts;
 }

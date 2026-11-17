@@ -123,11 +123,11 @@ State（全站状态）：`items` 数组 + `sort` 排序方式 + `nid` 下一个
 | MYSQL_PORT | 3306 | 数据库端口 |
 | MYSQL_USER | todo | 应用账号 |
 | MYSQL_PASSWORD | todo_day | 应用密码 |
-| MYSQL_DATABASE | todo_day | 库名 |
+| MYSQL_DATABASE | ai-schedule-butler | 库名 |
 
 首次部署：
 
-1. 安装 MariaDB，创建库 `todo_day` 与用户 `todo`（仅授权本库）。
+1. 安装 MariaDB，创建库 `ai-schedule-butler` 与用户 `todo`（仅授权本库）。
 2. `npm install`（根目录与 `server/` 各一次）。
 3. `npm run build` 构建前端。
 4. `npm run server` 启动；建表由服务自动完成。

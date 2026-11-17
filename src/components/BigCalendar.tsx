@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Tool from '../lib/tool.js'
-import { DAY, TODAY, WD, fmtDate, midnight, quadOf, statusOf, tagListOf } from '../lib/todo.js'
+import { DAY, TODAY, WD, dayTs, fmtDate, midnight, quadOf, shYmd, statusOf, tagListOf, wdOf } from '../lib/todo.js'
 import type { Item } from '../lib/types'
 
 const GRIP = (
@@ -119,12 +119,12 @@ export default function BigCalendar({ items, empMap, deptMap, onEdit, onReschedu
   onReschedule: (id: number, ts: number) => void
   onReorder: (fromId: number, toId: number) => void
 }) {
-  const [cur, setCur] = useState(() => { const d = new Date(TODAY); d.setDate(1); return d })
+  /* cur 是上海当月一号的零点时间戳（number），不再用 Date 对象避免本地时区干扰。 */
+  const [cur, setCur] = useState(() => { const [y, m] = shYmd(TODAY); return dayTs(y, m, 1) })
   const [sel, setSel] = useState(TODAY)
 
-  const y = cur.getFullYear(), m = cur.getMonth()
-  const first = new Date(y, m, 1).getDay()          // 0=日
-  const start = midnight(new Date(y, m, 1 - (first + 6) % 7))
+  const [y, m] = shYmd(cur)
+  const start = cur - ((wdOf(cur) + 6) % 7) * DAY   // 网格从当月首个周一拉起
   const days: number[] = []
   for (let k = 0; k < 42; k++) days.push(start + k * DAY)
   daysRef.current = days
@@ -134,16 +134,16 @@ export default function BigCalendar({ items, empMap, deptMap, onEdit, onReschedu
     .sort((a, b) => statusOf(a) - statusOf(b) || quadOf(a) - quadOf(b))
   const todayList = onDay(sel)
   const other = todayList.filter(i => statusOf(i) !== 2)
-  const thisM = (ts: number) => new Date(ts).getMonth() === m
+  const thisM = (ts: number) => shYmd(ts)[1] === m
 
   return (
     <div className="bigcal">
       <div className="bchead">
         <b>{y + ' 年 ' + (m + 1) + ' 月'}</b>
         <span className="spacer" />
-        <button className="miniib" onClick={() => setCur(new Date(y, m - 1, 1))}>‹</button>
-        <button className="chip" onClick={() => { setCur(new Date(new Date(TODAY).getFullYear(), new Date(TODAY).getMonth(), 1)); setSel(TODAY) }}>今天</button>
-        <button className="miniib" onClick={() => setCur(new Date(y, m + 1, 1))}>›</button>
+        <button className="miniib" onClick={() => setCur(dayTs(y, m - 1, 1))}>‹</button>
+        <button className="chip" onClick={() => { const [ty, tm] = shYmd(TODAY); setCur(dayTs(ty, tm, 1)); setSel(TODAY) }}>今天</button>
+        <button className="miniib" onClick={() => setCur(dayTs(y, m + 1, 1))}>›</button>
       </div>
 
       <div className="bcgridwrap">
@@ -156,7 +156,7 @@ export default function BigCalendar({ items, empMap, deptMap, onEdit, onReschedu
               <div key={ts}
                    className={'bccell' + (ts === TODAY ? ' today' : '') + (ts === sel ? ' sel' : '') + (!thisM(ts) ? ' out' : '')}
                    onClick={() => setSel(ts)}>
-                <div className="bcd">{new Date(ts).getDate()}</div>
+                <div className="bcd">{shYmd(ts)[2]}</div>
                 <div className="bcs">
                   {list.slice(0, 3).map(i => (
                     <div key={i.id} className={'bcstrip' + (statusOf(i) === 2 ? ' done' : '')}>

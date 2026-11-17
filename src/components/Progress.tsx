@@ -1,4 +1,4 @@
-import { DAY, TODAY, midnight, statusOf, tagListOf } from '../lib/todo.js'
+import { DAY, TODAY, midnight, statusOf, tagListOf, wdOf } from '../lib/todo.js'
 import { best, counts, recent } from '../lib/heat.js'
 import Heat from './Heat'
 import type { Item } from '../lib/types'
@@ -71,7 +71,7 @@ export default function Progress({ items, onClear, onExportCSV, onExportPoster }
           {week.map(w => (
             <div className="d" key={w.d}>
               <div className="b" style={{ height: (w.n / max * 58 + 2) + 'px' }} />
-              <div className="l">{'日一二三四五六'[new Date(w.d).getDay()]}</div>
+              <div className="l">{'日一二三四五六'[wdOf(w.d)]}</div>
             </div>
           ))}
         </div>

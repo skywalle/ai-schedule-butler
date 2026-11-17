@@ -1,7 +1,7 @@
 /* 完成热力格：列是周，行是周一到周日，和上面那本月历同一个起点。
    一年太长，手账只回看 18 周 —— 340px 的边栏里，再多一列格子就该眯眼看了。 */
 import { useState } from 'react'
-import { TODAY, fmtDate } from '../lib/todo.js'
+import { TODAY, fmtDate, shYmd } from '../lib/todo.js'
 import { DAYS, WEEKS, counts, level, streak } from '../lib/heat.js'
 import type { Item } from '../lib/types'
 
@@ -29,8 +29,8 @@ export default function Heat({ items }: { items: Item[] }) {
           {Array.from({ length: WEEKS }, (_, w) => {
             /* 月份只在换月的那一列标一次。最左那列不标：它多半是半截月份，
                标出来只会和第二列的标签挤在一起。 */
-            const m = new Date(DAYS[w * 7]).getMonth()
-            if (!w || m === new Date(DAYS[w * 7 - 7]).getMonth()) return null
+            const m = shYmd(DAYS[w * 7])[1]
+            if (!w || m === shYmd(DAYS[w * 7 - 7])[1]) return null
             return <span className="hmon" key={'m' + w}
                          style={{ gridColumn: w + 2, gridRow: 1 }}>{m + 1 + ' 月'}</span>
           })}
