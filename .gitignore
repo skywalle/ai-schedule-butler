@@ -1,0 +1,42 @@
+# ── 依赖 ──────────────────────────────────────────────
+node_modules/
+**/node_modules/
+
+# ── 构建产物 ──────────────────────────────────────────
+dist/
+dist-ssr/
+*.local
+*.tsbuildinfo
+
+# ── 环境变量（含密钥，只提交示例文件）────────────────
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# ── 日志与临时文件 ────────────────────────────────────
+*.log
+logs/
+tmp/
+*.tmp
+*.temp
+.cache/
+
+# ── 测试与覆盖率 ──────────────────────────────────────
+coverage/
+
+# ── 编辑器与 IDE ──────────────────────────────────────
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ── 操作系统 ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini

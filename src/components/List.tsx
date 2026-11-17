@@ -1,0 +1,107 @@
+import { Fragment } from 'react'
+import Kit from '../lib/kit.js'
+import Tool from '../lib/tool.js'
+import { ORDER, TODAY, bucketOf, dueText, midnight, quadOf } from '../lib/todo.js'
+import type { Item, State } from '../lib/types'
+
+const CHECK = <svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5" /></svg>
+const GRIP = (
+  <svg viewBox="0 0 24 24" fill="none">
+    <path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"
+          strokeLinecap="round" strokeWidth="2.4" />
+  </svg>
+)
+
+/* ── 拖拽排序 ──────────────────────────────────────────────────────────────
+   用 pointer events 而不是 HTML5 drag-and-drop：后者在移动端浏览器里根本不触发。
+   落点标记直接改 class —— 这是每帧都在动的纯视觉反馈，走 state 只会让整张列表
+   跟着重渲染。 */
+function useDrag(sort: State['sort'], reorder: (fromId: number, toId: number) => void) {
+  return (item: Item) => (e: React.PointerEvent<HTMLDivElement>) => {
+    if (sort !== 'manual') { Kit.toast('先把排序切回「手动」才能拖'); return }
+    e.preventDefault()
+    const handle = e.currentTarget
+    const el = handle.closest('.item') as HTMLElement
+    handle.setPointerCapture(e.pointerId)
+    el.classList.add('dragging')
+    Tool.haptic(8)
+    let marker: HTMLElement | null = null
+    const move = (ev: PointerEvent) => {
+      const y = ev.clientY
+      const rows = [...document.querySelectorAll('.item')].filter(r => r !== el) as HTMLElement[]
+      if (marker) marker.classList.remove('dropbefore')
+      marker = rows.find(r => {
+        const b = r.getBoundingClientRect(); return y < b.top + b.height / 2
+      }) || null
+      if (marker) marker.classList.add('dropbefore')
+    }
+    const up = () => {
+      handle.removeEventListener('pointermove', move)
+      handle.removeEventListener('pointerup', up)
+      el.classList.remove('dragging')
+      if (marker) {
+        marker.classList.remove('dropbefore')
+        reorder(item.id, +marker.dataset.id!)
+        Tool.sound.tick()
+      }
+    }
+    handle.addEventListener('pointermove', move)
+    handle.addEventListener('pointerup', up)
+  }
+}
+
+export default function List({ items, filter, sort, onToggle, onEdit, onReorder }: {
+  items: Item[]
+  filter: string
+  sort: State['sort']
+  onToggle: (i: Item) => void
+  onEdit: (i: Item) => void
+  onReorder: (fromId: number, toId: number) => void
+}) {
+  const drag = useDrag(sort, onReorder)
+  const groups: Record<string, Item[]> = {}
+  items.forEach(i => (groups[bucketOf(i)] = groups[bucketOf(i)] || []).push(i))
+
+  if (!items.length) return (
+    <div className="empty">
+      {CHECK}
+      <div>{filter === 'done' ? '还没有勾掉的事。'
+        : <>这里是空的。<br />在下面那一栏加一件事。</>}</div>
+    </div>
+  )
+
+  return (
+    <>
+      {ORDER.filter((g: string) => groups[g]).map((g: string) => (
+        <Fragment key={g}>
+          <div className="grouphead"><span>{g}</span><span className="n">{groups[g].length}</span></div>
+          {groups[g].map(i => (
+            <div key={i.id} className={'item' + (i.done ? ' done' : '')} data-id={i.id}
+                 style={{ '--pri': i.p === 1 ? 'var(--p1)' : i.p === 2 ? 'var(--p2)' : 'transparent' } as React.CSSProperties}>
+              <button className="box" type="button" aria-label="完成"
+                      onClick={e => { e.stopPropagation(); onToggle(i) }}>{CHECK}</button>
+              <div className="body" onClick={() => onEdit(i)}>
+                <div className="txt">{i.t}</div>
+                {(i.g || i.due || i.p < 3 || quadOf(i) !== 4) && (
+                  <div className="meta">
+                    {quadOf(i) !== 4 ? (
+                      <i className="qmark" title={['','重要且紧急','重要不紧急','紧急不重要','不重要不紧急'][quadOf(i)]}
+                         style={{ background: ['','var(--neg)','var(--accent)','var(--warn)','var(--faint)'][quadOf(i)] }} />
+                    ) : null}
+                    {i.g ? <span className="tag">{i.g}</span> : null}
+                    {i.due ? (
+                      <span className={'due' + (midnight(i.due) < TODAY && !i.done ? ' late'
+                        : midnight(i.due) === TODAY ? ' soon' : '')}>{dueText(i)}</span>
+                    ) : null}
+                    {i.p < 3 ? <span>{i.p === 1 ? '高' : '中'}</span> : null}
+                  </div>
+                )}
+              </div>
+              <div className="handle" title="拖动排序" onPointerDown={drag(i)}>{GRIP}</div>
+            </div>
+          ))}
+        </Fragment>
+      ))}
+    </>
+  )
+}
