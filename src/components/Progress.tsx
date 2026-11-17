@@ -1,4 +1,4 @@
-import { DAY, TODAY, midnight, statusOf } from '../lib/todo.js'
+import { DAY, TODAY, midnight, statusOf, tagListOf } from '../lib/todo.js'
 import { best, counts, recent } from '../lib/heat.js'
 import Heat from './Heat'
 import type { Item } from '../lib/types'
@@ -24,7 +24,10 @@ export default function Progress({ items, onClear, onExportCSV, onExportPoster }
   const c = counts(items)
   const groups = Object.entries(
     items.reduce((m: Record<string, { n: number; d: number }>, i) => {
-      const g = m[i.g] || (m[i.g] = { n: 0, d: 0 }); g.n++; if (i.done) g.d++
+      /* 多关键字的 todo 在每个关键字下都计数。 */
+      for (const kw of tagListOf(i)) {
+        const g = m[kw] || (m[kw] = { n: 0, d: 0 }); g.n++; if (i.done) g.d++
+      }
       return m
     }, {})
   ).sort((a, b) => b[1].n - a[1].n)
@@ -42,11 +45,11 @@ export default function Progress({ items, onClear, onExportCSV, onExportPoster }
           <div><b>{best(c)}</b><i>最长连续</i></div>
         </div>
 
-        <div className="grouphead"><span>按分组</span><b>{items.filter(i => statusOf(i) !== 2 && i.due && midnight(i.due) <= TODAY + DAY * 7).length + ' 件待办在一周内'}</b></div>
+        <div className="grouphead"><span>按关键字</span><b>{items.filter(i => statusOf(i) !== 2 && i.due && midnight(i.due) <= TODAY + DAY * 7).length + ' 件待办在一周内'}</b></div>
         <div className="glist">
-          {groups.map(([g, v]) => (
-            <div className="grow" key={g}>
-              <span className="nm">{g}</span>
+          {groups.map(([kw, v]) => (
+            <div className="grow" key={kw}>
+              <span className="nm">{kw}</span>
               <span className="bar"><i style={{ width: (v.d / v.n * 100) + '%' }} /></span>
               <span className="v">{v.d + '/' + v.n}</span>
             </div>
@@ -73,12 +76,12 @@ export default function Progress({ items, onClear, onExportCSV, onExportPoster }
           ))}
         </div>
 
-        <div className="grouphead"><span>按分组</span></div>
+        <div className="grouphead"><span>按关键字</span></div>
         <div className="pgroups2">
-          {groups.map(([g, v]) => (
-            <div className="pgroup" key={g}>
+          {groups.map(([kw, v]) => (
+            <div className="pgroup" key={kw}>
               <div className="pgt">
-                <span className="pgn">{g}</span>
+                <span className="pgn">{kw}</span>
                 <span className="pgv">{v.d + ' / ' + v.n + ' 已完成'}</span>
               </div>
               <div className="pgbar"><i style={{ width: (v.d / v.n * 100) + '%' }} /></div>

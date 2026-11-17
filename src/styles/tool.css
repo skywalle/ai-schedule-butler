@@ -236,6 +236,66 @@ body { overscroll-behavior-y: none }
 }
 .hint { font-size: 11.5px; color: var(--faint); line-height: 1.6 }
 
+/* 任务面板（新建/编辑共用）的左右双栏：普通字段两两成对，
+   .span2 的字段（内容、任务详情）跨整行。窄屏回退单列。 */
+.taskform { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18px }
+.taskform .span2 { grid-column: 1 / -1 }
+.sheet.sheet-task { width: min(94vw, 720px) }
+@media (max-width: 600px) {
+  .taskform { grid-template-columns: 1fr }
+  .sheet.sheet-task { width: min(92vw, var(--sheet-w)) }
+}
+
+/* 关键字录入：# 触发建议，回车落成小圆片，点圆片删除。
+   比 .field input 多一层类，盖掉默认的边框输入框样式。 */
+.taginput { position: relative; display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  min-height: 40px; padding: 5px 9px; background: var(--raised);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  transition: border-color var(--fast), background var(--fast) }
+.taginput:focus-within { border-color: var(--accent); background: var(--panel) }
+.tagchips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; flex: 1; min-width: 0 }
+.tagchip { display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  height: 26px; min-width: 26px; padding: 0 9px; line-height: 1; font-size: 12px;
+  color: var(--accent); background: var(--accent-soft);
+  border: 1px solid var(--accent); border-radius: 999px; cursor: pointer }
+.tagchip i { font-style: normal; font-size: 10px; opacity: .55 }
+.tagchip:hover i { opacity: 1 }
+.field .taginput input { flex: 1; min-width: 100px; height: 28px; padding: 0;
+  background: transparent; border: 0; box-shadow: none }
+.field .taginput input:focus { background: transparent; border: 0; box-shadow: none }
+.tagsug { display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 30;
+  margin-top: 4px; max-height: 168px; overflow: auto;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-sm);
+  box-shadow: 0 8px 24px rgba(0,0,0,.12) }
+.tagsug button { display: block; width: 100%; padding: 8px 11px; text-align: left;
+  background: none; border: 0; font: inherit; font-size: 13px; color: var(--ink); cursor: pointer }
+.tagsug button:hover { background: var(--accent-soft); color: var(--accent) }
+
+/* 日期输入：文本框 + 小月历弹层。原生 date 输入显示格式跟随浏览器区域
+   设置（中文 Chrome 显示 2026/11/17），所以用文本框保证 yyyy-mm-dd。 */
+.datewrap { position: relative; display: flex; gap: 6px }
+.datewrap > input { flex: 1; font-family: var(--mono) }
+.dtpick { width: 40px; height: 40px; border-color: var(--line); background: var(--raised) }
+.dtpick:hover { color: var(--ink); border-color: var(--accent) }
+.calpop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 10;
+  width: 258px; padding: 10px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
+  box-shadow: 0 10px 28px rgb(0 0 0 / .16);
+}
+.calpop-head { display: flex; align-items: center; gap: 4px; margin-bottom: 8px }
+.calpop-head b { flex: 1; font-family: var(--mono); font-size: 12.5px }
+.calpop-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px }
+.calpop-grid .wd { text-align: center; font-size: 10px; color: var(--faint); padding: 2px 0 }
+.calpop-grid .d {
+  height: 30px; border-radius: var(--r-sm); font-size: 12px;
+  color: var(--ink); background: none; border: 1px solid transparent; cursor: pointer;
+}
+.calpop-grid .d:hover { background: var(--raised); border-color: var(--line) }
+.calpop-grid .d.out { opacity: .32 }
+.calpop-grid .d.today { color: var(--accent); font-weight: 600 }
+.calpop-grid .d.on { background: var(--accent); color: var(--panel); font-weight: 600 }
+
 /* Chips live in horizontally-scrolling rows; letting a two-word Chinese label
    wrap turns a 24px row into a 44px one and breaks the row's rhythm. */
 .chip { white-space: nowrap }

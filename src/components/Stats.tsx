@@ -1,4 +1,4 @@
-import { DAY, TODAY, midnight } from '../lib/todo.js'
+import { DAY, TODAY, midnight, tagListOf } from '../lib/todo.js'
 import type { Item } from '../lib/types'
 
 export default function Stats({ items }: { items: Item[] }) {
@@ -13,8 +13,11 @@ export default function Stats({ items }: { items: Item[] }) {
   }
   const max = Math.max(1, ...week.map(w => w.n))
 
-  const byG: Record<string, { n: number; d: number }> = {}
-  items.forEach(i => { byG[i.g] = byG[i.g] || { n: 0, d: 0 }; byG[i.g].n++; if (i.done) byG[i.g].d++ })
+  /* 按关键字展开计数：一条 todo 有多个关键字就分别计入每个关键字。 */
+  const byTag: Record<string, { n: number; d: number }> = {}
+  items.forEach(i => { for (const kw of tagListOf(i)) {
+    const g = byTag[kw] || (byTag[kw] = { n: 0, d: 0 }); g.n++; if (i.done) g.d++
+  } })
 
   return (
     <>
@@ -38,11 +41,11 @@ export default function Stats({ items }: { items: Item[] }) {
         ))}
       </div>
 
-      <div className="grouphead"><span>按分组</span></div>
-      {Object.entries(byG).sort((a, b) => b[1].n - a[1].n).map(([g, v]) => (
-        <div className="item" key={g} style={{ '--pri': 'transparent' } as React.CSSProperties}>
+      <div className="grouphead"><span>按关键字</span></div>
+      {Object.entries(byTag).sort((a, b) => b[1].n - a[1].n).map(([kw, v]) => (
+        <div className="item" key={kw}>
           <div className="body">
-            <div className="txt">{g}</div>
+            <div className="txt">{kw}</div>
             <div className="meta"><span>{v.d + ' / ' + v.n + ' 已完成'}</span></div>
           </div>
           <div className="bar" style={{ width: '80px', alignSelf: 'center' }}>

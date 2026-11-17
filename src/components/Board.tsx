@@ -1,5 +1,5 @@
 import Tool from '../lib/tool.js'
-import { QUADS, TODAY, dueText, midnight, quadOf } from '../lib/todo.js'
+import { QUADS, TODAY, dueText, midnight, quadOf, tagListOf } from '../lib/todo.js'
 import type { Item, State } from '../lib/types'
 
 const CHECK = <svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5" /></svg>
@@ -76,9 +76,11 @@ function dragTo(item: Item, onMove: (id: number, q: number) => void) {
   }
 }
 
-export default function Board({ items, titles, onToggle, onEdit, onMove, onRename, onAdd }: {
+export default function Board({ items, titles, empMap, deptMap, onToggle, onEdit, onMove, onRename, onAdd }: {
   items: Item[]
   titles: State['titles']
+  empMap: Map<number, string>
+  deptMap: Map<number, string>
   onToggle: (i: Item) => void
   onEdit: (i: Item) => void
   onMove: (id: number, q: number) => void
@@ -88,7 +90,7 @@ export default function Board({ items, titles, onToggle, onEdit, onMove, onRenam
   const open = items.filter(i => !i.done)
   const byQ = (q: number) => open
     .filter(i => quadOf(i) === q)
-    .sort((a, b) => (a.due || 9e15) - (b.due || 9e15) || a.p - b.p)
+    .sort((a, b) => (a.due || 9e15) - (b.due || 9e15))
 
   const openRename = (q: number, cur: string) => {
     const host = document.createElement('div')
@@ -130,28 +132,30 @@ export default function Board({ items, titles, onToggle, onEdit, onMove, onRenam
             </header>
             <div className="quadlist">
               {!list.length && <div className="quadempty">空。拖进来，或点右上角 + 添加</div>}
-              {list.map(i => (
+              {list.map(i => {
+                const who = i.empId ? empMap.get(i.empId) : i.deptId ? deptMap.get(i.deptId) : ''
+                return (
                 <div key={i.id} className="qcard" data-id={i.id}
-                     onPointerDown={dragTo(i, onMove)}
-                     style={{ '--pri': i.p === 1 ? 'var(--p1)' : i.p === 2 ? 'var(--p2)' : 'transparent' } as React.CSSProperties}>
+                     onPointerDown={dragTo(i, onMove)}>
                   <button className="box" type="button" aria-label="完成"
                           onClick={e => { e.stopPropagation(); onToggle(i) }}>{CHECK}</button>
                   <div className="qb" onClick={() => onEdit(i)}>
                     <div className="qt">{i.t}</div>
-                    {(i.due || i.g) ? (
+                    {(i.due || tagListOf(i).length || who) ? (
                       <div className="meta">
-                        <span className={'pri p' + i.p}>{i.p === 1 ? '高' : i.p === 2 ? '中' : '低'}</span>
                         {i.due ? (
                           <span className={'due' + (midnight(i.due) < TODAY ? ' late'
                             : midnight(i.due) === TODAY ? ' soon' : '')}>{dueText(i)}</span>
                         ) : null}
-                        {i.g ? <span className="tag">{i.g}</span> : null}
+                        {who ? <span className="tag who">{who}</span> : null}
+                        {tagListOf(i).map((kw: string) => <span className="tag" key={kw}>{kw}</span>)}
                       </div>
                     ) : null}
                   </div>
                   <div className="grip" title="按住这里拖到别的象限">{GRIP}</div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </section>
         )

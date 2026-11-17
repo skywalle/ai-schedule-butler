@@ -1,5 +1,5 @@
 import Tool from '../lib/tool.js'
-import { STATUSES, TODAY, dueText, midnight, statusOf } from '../lib/todo.js'
+import { STATUSES, TODAY, dueText, midnight, statusOf, tagListOf } from '../lib/todo.js'
 import type { Item, State } from '../lib/types'
 
 const GRIP = (
@@ -86,9 +86,11 @@ function dragCard(item: Item, onStatus: (id: number, s: number) => void,
   }
 }
 
-export default function Kanban({ items, titles, onStatus, onEdit, onReorder, onRename, onAdd }: {
+export default function Kanban({ items, titles, empMap, deptMap, onStatus, onEdit, onReorder, onRename, onAdd }: {
   items: Item[]
   titles: State['titles']
+  empMap: Map<number, string>
+  deptMap: Map<number, string>
   onStatus: (id: number, s: number) => void
   onEdit: (i: Item) => void
   onReorder: (fromId: number, toId: number) => void
@@ -135,25 +137,26 @@ export default function Kanban({ items, titles, onStatus, onEdit, onReorder, onR
             </header>
             <div className="klist">
               {!list.length && <div className="kempty">拖动任务到这里</div>}
-              {list.map(i => (
+              {list.map(i => {
+                const who = i.empId ? empMap.get(i.empId) : i.deptId ? deptMap.get(i.deptId) : ''
+                return (
                 <div key={i.id} className={'kcard' + (su.k === 2 ? ' done' : '')}
                      data-id={i.id}
-                     onPointerDown={dragCard(i, onStatus, onReorder)}
-                     style={{ '--pri': i.p === 1 ? 'var(--p1)' : i.p === 2 ? 'var(--p2)' : 'transparent' } as React.CSSProperties}>
+                     onPointerDown={dragCard(i, onStatus, onReorder)}>
                   <button className={'cbox s' + su.k} type="button" title={CTIP[su.k]}
                           onClick={e => { e.stopPropagation(); onStatus(i.id, (su.k + 1) % 3) }}>
                     {CYCLE[su.k]}
                   </button>
                   <div className="kb" onClick={() => onEdit(i)}>
                     <div className="kt">{i.t}</div>
-                    {(i.due || i.g) ? (
+                    {(i.due || tagListOf(i).length || who) ? (
                       <div className="meta">
-                        <span className={'pri p' + i.p}>{i.p === 1 ? '高' : i.p === 2 ? '中' : '低'}</span>
                         {i.due ? (
                           <span className={'due' + (midnight(i.due) < TODAY && su.k !== 2 ? ' late'
                             : midnight(i.due) === TODAY ? ' soon' : '')}>{dueText(i)}</span>
                         ) : null}
-                        {i.g ? <span className="tag">{i.g}</span> : null}
+                        {who ? <span className="tag who">{who}</span> : null}
+                        {tagListOf(i).map((kw: string) => <span className="tag" key={kw}>{kw}</span>)}
                       </div>
                     ) : null}
                   </div>
@@ -161,7 +164,8 @@ export default function Kanban({ items, titles, onStatus, onEdit, onReorder, onR
                     {GRIP}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </section>
         )

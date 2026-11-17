@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 import Kit from '../lib/kit.js'
 import Tool from '../lib/tool.js'
-import { ORDER, TODAY, bucketOf, dueText, midnight, quadOf } from '../lib/todo.js'
+import { ORDER, TODAY, bucketOf, dueText, midnight, quadOf, tagListOf } from '../lib/todo.js'
 import type { Item, State } from '../lib/types'
 
 const CHECK = <svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5" /></svg>
@@ -50,10 +50,12 @@ function useDrag(sort: State['sort'], reorder: (fromId: number, toId: number) =>
   }
 }
 
-export default function List({ items, filter, sort, onToggle, onEdit, onReorder }: {
+export default function List({ items, filter, sort, empMap, deptMap, onToggle, onEdit, onReorder }: {
   items: Item[]
   filter: string
   sort: State['sort']
+  empMap: Map<number, string>
+  deptMap: Map<number, string>
   onToggle: (i: Item) => void
   onEdit: (i: Item) => void
   onReorder: (fromId: number, toId: number) => void
@@ -75,31 +77,33 @@ export default function List({ items, filter, sort, onToggle, onEdit, onReorder 
       {ORDER.filter((g: string) => groups[g]).map((g: string) => (
         <Fragment key={g}>
           <div className="grouphead"><span>{g}</span><span className="n">{groups[g].length}</span></div>
-          {groups[g].map(i => (
-            <div key={i.id} className={'item' + (i.done ? ' done' : '')} data-id={i.id}
-                 style={{ '--pri': i.p === 1 ? 'var(--p1)' : i.p === 2 ? 'var(--p2)' : 'transparent' } as React.CSSProperties}>
+          {groups[g].map(i => {
+            const who = i.empId ? empMap.get(i.empId) : i.deptId ? deptMap.get(i.deptId) : ''
+            return (
+            <div key={i.id} className={'item' + (i.done ? ' done' : '')} data-id={i.id}>
               <button className="box" type="button" aria-label="完成"
                       onClick={e => { e.stopPropagation(); onToggle(i) }}>{CHECK}</button>
               <div className="body" onClick={() => onEdit(i)}>
                 <div className="txt">{i.t}</div>
-                {(i.g || i.due || i.p < 3 || quadOf(i) !== 4) && (
+                {(tagListOf(i).length || i.due || who || quadOf(i) !== 4) && (
                   <div className="meta">
                     {quadOf(i) !== 4 ? (
                       <i className="qmark" title={['','重要且紧急','重要不紧急','紧急不重要','不重要不紧急'][quadOf(i)]}
                          style={{ background: ['','var(--neg)','var(--accent)','var(--warn)','var(--faint)'][quadOf(i)] }} />
                     ) : null}
-                    {i.g ? <span className="tag">{i.g}</span> : null}
+                    {who ? <span className="tag who">{who}</span> : null}
+                    {tagListOf(i).map((kw: string) => <span className="tag" key={kw}>{kw}</span>)}
                     {i.due ? (
                       <span className={'due' + (midnight(i.due) < TODAY && !i.done ? ' late'
                         : midnight(i.due) === TODAY ? ' soon' : '')}>{dueText(i)}</span>
                     ) : null}
-                    {i.p < 3 ? <span>{i.p === 1 ? '高' : '中'}</span> : null}
                   </div>
                 )}
               </div>
               <div className="handle" title="拖动排序" onPointerDown={drag(i)}>{GRIP}</div>
             </div>
-          ))}
+            )
+          })}
         </Fragment>
       ))}
     </>

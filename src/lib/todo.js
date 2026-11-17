@@ -4,6 +4,12 @@ export const DAY = 864e5;
 export const midnight = d => { const x = new Date(d); x.setHours(0,0,0,0); return +x };
 export const TODAY = midnight(Date.now());
 
+/* 全站统一日期格式 yyyy-mm-dd，例如 2026-01-01。 */
+export const fmtDate = ts => {
+  const d = new Date(ts), p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+};
+
 
 /* ── 四象限 ────────────────────────────────────────────────────────────────
    经典艾森豪威尔矩阵。quadrant 存在每条 item 上，清单和看板是同一份数据
@@ -17,13 +23,11 @@ export const QUADS = [
 export const quadOf = i => i.quad || 4;
 
 /* ── 输入解析 ──────────────────────────────────────────────────────────────
-   一行字里就能带出日期、优先级和象限。用户在手机上不会去点三个下拉菜单，
+   一行字里就能带出日期、象限和多个 # 关键字。用户在手机上不会去点三个下拉菜单，
    打字是唯一真的会被用的录入方式。 */
 export function parseInput(raw){
   let t = raw.trim();
-  let p = 3, due = 0, g = '', q = 4;
-  const bang = t.match(/(^|\s)(!{1,3})(\s|$)/);
-  if (bang){ p = 4 - bang[2].length; t = t.replace(bang[0], ' ') }
+  let due = 0, q = 4;
   /* 重要/紧急两个词自由组合：都有 → 1，只重要 → 2，只紧急 → 3，都没有 → 4。
      先探测「不重要 / 不紧急」再删除，否则「不紧急」里的「紧急」会被误算。 */
   const imp = !/不重要/.test(t) && /重要/.test(t);
@@ -48,10 +52,11 @@ export function parseInput(raw){
     const m = t.match(re);
     if (m){ due = fn(m); t = t.replace(m[0], ' '); break }
   }
-  const tag = t.match(/#(\S+)/);
-  if (tag){ g = tag[1]; t = t.replace(tag[0], ' ') }
+  /* 所有 # 关键字都收集：一条 todo 可挂多个，聚合时各自计数。 */
+  const tagList = [...new Set((t.match(/#\S+/g) || []).map(x => x.slice(1)))];
+  t = t.replace(/#\S+/g, ' ');
   t = t.replace(/\s+/g,' ').trim();
-  return { t, p, due, q, st, g: g || (p === 1 ? '工作' : '生活') };
+  return { t, due, q, st, tagList: tagList.length ? tagList : ['生活'] };
 }
 
 /* 状态：0 待完成 / 1 进行中 / 2 已完成。旧数据没有 status 字段的，
@@ -63,6 +68,9 @@ export const STATUSES = [
 ];
 export const statusOf = i => i.status ?? (i.done ? 2 : 0);
 export const cycleStatus = s => (s + 1) % 3;
+
+/* 关键字列表：旧数据只有单值 g，读取时现场兜成数组，各视图不用各自判断。 */
+export const tagListOf = i => i.tagList || (i.g ? [i.g] : []);
 
 
 export function bucketOf(i){
@@ -84,10 +92,10 @@ export function dueText(i){
   if (diff === 1) return '明天';
   if (diff === -1) return '昨天';
   if (diff < 0) return `逾期 ${-diff} 天`;
-  return new Date(d).toLocaleDateString('zh-CN', { month:'numeric', day:'numeric' });
+  return fmtDate(d);
 }
 
-export const SORTS = { manual:'手动', due:'按日期', pri:'按优先级', group:'按分组' };
+export const SORTS = { manual:'手动', due:'按日期', group:'按关键字' };
 export const WD = ['一','二','三','四','五','六','日'];
 
 export function visible(items, filter, sort){
@@ -97,8 +105,7 @@ export function visible(items, filter, sort){
   if (filter === 'doing') v = v.filter(i => statusOf(i) === 1);
   if (filter === 'done') v = v.filter(i => statusOf(i) === 2);
   if (sort === 'due') v.sort((a,b) => (a.due||9e15) - (b.due||9e15));
-  if (sort === 'pri') v.sort((a,b) => a.p - b.p);
-  if (sort === 'group') v.sort((a,b) => a.g.localeCompare(b.g,'zh'));
+  if (sort === 'group') v.sort((a,b) => (tagListOf(a)[0] || '').localeCompare(tagListOf(b)[0] || '','zh'));
   return v;
 }
 
@@ -122,68 +129,68 @@ export function seed(){
   const pick = (arr) => arr[Math.floor(Math.random()*arr.length)];
   const D = DAY;
 
-  /* 四个分组，每组一批贴近真实迭代的任务模板。
-     status 0 待完成 / 1 进行中 / 2 已完成；象限跟优先级挂钩。 */
+  /* 四个关键字，每个关键字一批贴近真实迭代的任务模板。
+     status 0 待完成 / 1 进行中 / 2 已完成。 */
   const POOL = {
     '产品': [
-      { t:'撰写 v2.1 版本需求文档', p:1, q:1, w:3 }, { t:'评审用户反馈周报', p:2, q:3, w:3 },
-      { t:'梳理新用户激活漏斗', p:1, q:2, w:2 }, { t:'竞品功能对比分析', p:2, q:2, w:3 },
-      { t:'更新产品路线图', p:1, q:1, w:2 }, { t:'确认下周迭代范围', p:2, q:3, w:3 },
-      { t:'输出 A/B 测试结论', p:1, q:1, w:2 }, { t:'回访 3 个流失用户', p:2, q:2, w:2 },
-      { t:'补充数据看板指标', p:3, q:4, w:2 }, { t:'整理埋点需求清单', p:2, q:2, w:2 },
-      { t:'修订 PRD 审批流', p:1, q:1, w:2 }, { t:'组织需求优先级打分', p:2, q:3, w:2 },
-      { t:'跟法务确认合规文案', p:2, q:3, w:1 }, { t:'绘制用户旅程地图', p:2, q:2, w:2 },
-      { t:'准备季度 OKR 初稿', p:1, q:2, w:2 }, { t:'拆解会员体系需求', p:2, q:2, w:2 },
-      { t:'核算上季度功能 ROI', p:3, q:4, w:1 }, { t:'输出改版验收清单', p:2, q:3, w:2 },
-      { t:'同步客服侧 FAQ 更新', p:3, q:4, w:1 }, { t:'定义灰度发布策略', p:1, q:1, w:2 },
-      { t:'评审试用版申请表单', p:2, q:3, w:1 }, { t:'检查各端文案一致性', p:3, q:4, w:1 },
-      { t:'合并重复的用户画像', p:2, q:2, w:1 }, { t:'复盘上一迭代延期项', p:2, q:1, w:2 },
-      { t:'确认推送频控规则', p:2, q:3, w:1 }, { t:'列出新功能培训要点', p:3, q:4, w:1 },
+      { t:'撰写 v2.1 版本需求文档', q:1, w:3 }, { t:'评审用户反馈周报', q:3, w:3 },
+      { t:'梳理新用户激活漏斗', q:2, w:2 }, { t:'竞品功能对比分析', q:2, w:3 },
+      { t:'更新产品路线图', q:1, w:2 }, { t:'确认下周迭代范围', q:3, w:3 },
+      { t:'输出 A/B 测试结论', q:1, w:2 }, { t:'回访 3 个流失用户', q:2, w:2 },
+      { t:'补充数据看板指标', q:4, w:2 }, { t:'整理埋点需求清单', q:2, w:2 },
+      { t:'修订 PRD 审批流', q:1, w:2 }, { t:'组织需求优先级打分', q:3, w:2 },
+      { t:'跟法务确认合规文案', q:3, w:1 }, { t:'绘制用户旅程地图', q:2, w:2 },
+      { t:'准备季度 OKR 初稿', q:2, w:2 }, { t:'拆解会员体系需求', q:2, w:2 },
+      { t:'核算上季度功能 ROI', q:4, w:1 }, { t:'输出改版验收清单', q:3, w:2 },
+      { t:'同步客服侧 FAQ 更新', q:4, w:1 }, { t:'定义灰度发布策略', q:1, w:2 },
+      { t:'评审试用版申请表单', q:3, w:1 }, { t:'检查各端文案一致性', q:4, w:1 },
+      { t:'合并重复的用户画像', q:2, w:1 }, { t:'复盘上一迭代延期项', q:1, w:2 },
+      { t:'确认推送频控规则', q:3, w:1 }, { t:'列出新功能培训要点', q:4, w:1 },
     ],
     '设计': [
-      { t:'绘制首页新版头图', p:1, q:1, w:2 }, { t:'完成注册流程重设计', p:1, q:1, w:3 },
-      { t:'输出设计规范 2.0', p:2, q:2, w:2 }, { t:'制作空状态插画', p:3, q:4, w:2 },
-      { t:'走查深色模式适配', p:2, q:2, w:3 }, { t:'改版设置页信息架构', p:2, q:2, w:2 },
-      { t:'补充加载动效', p:3, q:4, w:1 }, { t:'统一图标库描边粗细', p:3, q:4, w:2 },
-      { t:'设计会员中心页面', p:1, q:2, w:2 }, { t:'出移动端手势引导图', p:2, q:3, w:2 },
-      { t:'整理组件库命名', p:2, q:2, w:1 }, { t:'高保真还原审批流', p:1, q:1, w:2 },
-      { t:'检查表单错误提示', p:2, q:3, w:2 }, { t:'设计分享海报模板', p:3, q:4, w:1 },
-      { t:'优化搜索结果页布局', p:2, q:2, w:2 }, { t:'绘制新手引导气泡', p:2, q:3, w:1 },
-      { t:'评审品牌色应用', p:2, q:2, w:1 }, { t:'补齐图表配色方案', p:3, q:4, w:1 },
-      { t:'输出切图标注包', p:2, q:3, w:2 }, { t:'验证按钮禁用态对比度', p:2, q:3, w:1 },
-      { t:'整理历史稿件归档', p:3, q:4, w:1 }, { t:'设计空数据页插画', p:3, q:4, w:1 },
-      { t:'重排通知中心层级', p:2, q:2, w:2 }, { t:'标注弹层交互动效', p:2, q:3, w:1 },
-      { t:'核对字体回退方案', p:3, q:4, w:1 }, { t:'制作大屏适配稿', p:2, q:2, w:1 },
+      { t:'绘制首页新版头图', q:1, w:2 }, { t:'完成注册流程重设计', q:1, w:3 },
+      { t:'输出设计规范 2.0', q:2, w:2 }, { t:'制作空状态插画', q:4, w:2 },
+      { t:'走查深色模式适配', q:2, w:3 }, { t:'改版设置页信息架构', q:2, w:2 },
+      { t:'补充加载动效', q:4, w:1 }, { t:'统一图标库描边粗细', q:4, w:2 },
+      { t:'设计会员中心页面', q:2, w:2 }, { t:'出移动端手势引导图', q:3, w:2 },
+      { t:'整理组件库命名', q:2, w:1 }, { t:'高保真还原审批流', q:1, w:2 },
+      { t:'检查表单错误提示', q:3, w:2 }, { t:'设计分享海报模板', q:4, w:1 },
+      { t:'优化搜索结果页布局', q:2, w:2 }, { t:'绘制新手引导气泡', q:3, w:1 },
+      { t:'评审品牌色应用', q:2, w:1 }, { t:'补齐图表配色方案', q:4, w:1 },
+      { t:'输出切图标注包', q:3, w:2 }, { t:'验证按钮禁用态对比度', q:3, w:1 },
+      { t:'整理历史稿件归档', q:4, w:1 }, { t:'设计空数据页插画', q:4, w:1 },
+      { t:'重排通知中心层级', q:2, w:2 }, { t:'标注弹层交互动效', q:3, w:1 },
+      { t:'核对字体回退方案', q:4, w:1 }, { t:'制作大屏适配稿', q:2, w:1 },
     ],
     '开发': [
-      { t:'修复登录态偶发丢失', p:1, q:1, w:3 }, { t:'实现列表虚拟滚动', p:1, q:1, w:2 },
-      { t:'接口加缓存与降级', p:1, q:2, w:3 }, { t:'拆分结算页代码包', p:2, q:2, w:2 },
-      { t:'升级构建脚本', p:2, q:3, w:1 }, { t:'修复时区换算错误', p:1, q:1, w:2 },
-      { t:'接入新支付渠道', p:1, q:1, w:2 }, { t:'补单元测试覆盖率', p:2, q:2, w:3 },
-      { t:'优化首屏加载', p:1, q:2, w:3 }, { t:'迁移旧版埋点', p:2, q:3, w:2 },
-      { t:'重写文件上传组件', p:1, q:2, w:2 }, { t:'排查内存泄漏', p:1, q:1, w:2 },
-      { t:'补充 E2E 用例', p:2, q:3, w:2 }, { t:'灰度开关接入', p:2, q:3, w:2 },
-      { t:'清理废弃接口', p:3, q:4, w:2 }, { t:'跑全量回归', p:1, q:1, w:2 },
-      { t:'修复安卓键盘遮挡', p:1, q:3, w:2 }, { t:'配置错误告警', p:2, q:2, w:1 },
-      { t:'文档化部署流程', p:3, q:4, w:1 }, { t:'压缩静态资源', p:3, q:4, w:1 },
-      { t:'迁移图标为 SVG sprite', p:3, q:4, w:1 }, { t:'整理环境变量', p:2, q:3, w:1 },
-      { t:'联调数据导出接口', p:2, q:2, w:2 }, { t:'升级依赖安全补丁', p:1, q:2, w:2 },
-      { t:'抽象权限判断逻辑', p:2, q:2, w:2 }, { t:'实现离线缓存', p:2, q:3, w:1 },
+      { t:'修复登录态偶发丢失', q:1, w:3 }, { t:'实现列表虚拟滚动', q:1, w:2 },
+      { t:'接口加缓存与降级', q:2, w:3 }, { t:'拆分结算页代码包', q:2, w:2 },
+      { t:'升级构建脚本', q:3, w:1 }, { t:'修复时区换算错误', q:1, w:2 },
+      { t:'接入新支付渠道', q:1, w:2 }, { t:'补单元测试覆盖率', q:2, w:3 },
+      { t:'优化首屏加载', q:2, w:3 }, { t:'迁移旧版埋点', q:3, w:2 },
+      { t:'重写文件上传组件', q:2, w:2 }, { t:'排查内存泄漏', q:1, w:2 },
+      { t:'补充 E2E 用例', q:3, w:2 }, { t:'灰度开关接入', q:3, w:2 },
+      { t:'清理废弃接口', q:4, w:2 }, { t:'跑全量回归', q:1, w:2 },
+      { t:'修复安卓键盘遮挡', q:3, w:2 }, { t:'配置错误告警', q:2, w:1 },
+      { t:'文档化部署流程', q:4, w:1 }, { t:'压缩静态资源', q:4, w:1 },
+      { t:'迁移图标为 SVG sprite', q:4, w:1 }, { t:'整理环境变量', q:3, w:1 },
+      { t:'联调数据导出接口', q:2, w:2 }, { t:'升级依赖安全补丁', q:2, w:2 },
+      { t:'抽象权限判断逻辑', q:2, w:2 }, { t:'实现离线缓存', q:3, w:1 },
     ],
     '测试': [
-      { t:'编写结算链路用例', p:1, q:1, w:3 }, { t:'回归历史缺陷', p:1, q:2, w:3 },
-      { t:'压测下单接口', p:1, q:1, w:2 }, { t:'验证权限边界', p:2, q:2, w:2 },
-      { t:'检查多语言文案', p:3, q:4, w:2 }, { t:'跑兼容性矩阵', p:2, q:3, w:2 },
-      { t:'复测支付回调', p:1, q:1, w:2 }, { t:'验证数据导出正确性', p:2, q:2, w:2 },
-      { t:'整理自动化报告', p:3, q:4, w:1 }, { t:'新功能验收走查', p:2, q:3, w:3 },
-      { t:'构造异常场景用例', p:2, q:2, w:2 }, { t:'统计线上缺陷分布', p:3, q:4, w:1 },
-      { t:'跟开发对齐修复口径', p:2, q:3, w:2 }, { t:'验证空态与加载态', p:3, q:4, w:1 },
-      { t:'补埋点验收用例', p:2, q:2, w:2 }, { t:'回归移动端手势', p:2, q:3, w:1 },
-      { t:'核对告警触发', p:2, q:2, w:1 }, { t:'预发布环境巡检', p:1, q:1, w:2 },
-      { t:'验证下载文件完整性', p:2, q:2, w:1 }, { t:'清理测试脏数据', p:3, q:4, w:1 },
-      { t:'检查分页边界', p:2, q:2, w:2 }, { t:'验证导入模板校验', p:2, q:3, w:1 },
-      { t:'跑弱网场景', p:2, q:2, w:1 }, { t:'验收通知触达', p:2, q:3, w:2 },
-      { t:'汇总本周缺陷 Top5', p:2, q:2, w:1 }, { t:'验证账号注销流程', p:1, q:1, w:1 },
+      { t:'编写结算链路用例', q:1, w:3 }, { t:'回归历史缺陷', q:2, w:3 },
+      { t:'压测下单接口', q:1, w:2 }, { t:'验证权限边界', q:2, w:2 },
+      { t:'检查多语言文案', q:4, w:2 }, { t:'跑兼容性矩阵', q:3, w:2 },
+      { t:'复测支付回调', q:1, w:2 }, { t:'验证数据导出正确性', q:2, w:2 },
+      { t:'整理自动化报告', q:4, w:1 }, { t:'新功能验收走查', q:3, w:3 },
+      { t:'构造异常场景用例', q:2, w:2 }, { t:'统计线上缺陷分布', q:4, w:1 },
+      { t:'跟开发对齐修复口径', q:3, w:2 }, { t:'验证空态与加载态', q:4, w:1 },
+      { t:'补埋点验收用例', q:2, w:2 }, { t:'回归移动端手势', q:3, w:1 },
+      { t:'核对告警触发', q:2, w:1 }, { t:'预发布环境巡检', q:1, w:2 },
+      { t:'验证下载文件完整性', q:2, w:1 }, { t:'清理测试脏数据', q:4, w:1 },
+      { t:'检查分页边界', q:2, w:2 }, { t:'验证导入模板校验', q:3, w:1 },
+      { t:'跑弱网场景', q:2, w:1 }, { t:'验收通知触达', q:3, w:2 },
+      { t:'汇总本周缺陷 Top5', q:2, w:1 }, { t:'验证账号注销流程', q:1, w:1 },
     ],
   };
 
@@ -191,6 +198,21 @@ export function seed(){
   const items = [];
   let id = 1;
   const used = new Set();
+
+  /* 部门与员工主数据：任务按概率指派给员工或只挂部门。 */
+  const deptList = [
+    { id: 101, n: '产品部' },
+    { id: 102, n: '技术部' },
+    { id: 103, n: '设计部' },
+  ];
+  const empList = [
+    { id: 111, n: '林晓', deptId: 101 },
+    { id: 112, n: '陈默', deptId: 101 },
+    { id: 113, n: '王一帆', deptId: 102 },
+    { id: 114, n: '赵磊', deptId: 102 },
+    { id: 115, n: '苏晴', deptId: 103 },
+    { id: 116, n: '周远', deptId: 103 },
+  ];
 
   for (const g of GROUPS) {
     /* 每组按模板权重抽 ~25 条，全池凑满 100。 */
@@ -206,25 +228,38 @@ export function seed(){
       const roll = Math.random();
       let status = roll < 0.25 ? 1 : 0;
       let due = 0;
-      if (tpl.p === 1) {
+      if (tpl.q === 1) {
         due = Math.random() < 0.55 ? TODAY + rnd(0, 2) * D : TODAY - rnd(1, 5) * D;
-      } else if (tpl.p === 2) {
+      } else if (tpl.q === 2 || tpl.q === 3) {
         due = Math.random() < 0.3 ? 0 : (Math.random() < 0.5 ? TODAY + rnd(0, 7) * D : TODAY - rnd(1, 10) * D);
       } else {
         due = Math.random() < 0.4 ? 0 : TODAY + rnd(0, 21) * D;
       }
       /* 有日期且落在过去 → 多数已完成 */
       if (due && due < TODAY && Math.random() < 0.72) status = 2;
-      /* 高优先级且今天到期 → 仍多为未完成，制造真实压力 */
-      if (status === 2 && due && midnight(due) === TODAY && tpl.p === 1 && Math.random() < 0.5) status = 0;
+      /* 象限 1 且今天到期 → 仍多为未完成，制造真实压力 */
+      if (status === 2 && due && midnight(due) === TODAY && tpl.q === 1 && Math.random() < 0.5) status = 0;
       const done = status === 2;
       /* 完成时间：落在到期日当天或次日，别超前。 */
       const at = done && due ? due + rnd(9, 20) * H : done ? TODAY - rnd(0, 6) * D + rnd(9, 20) * H : 0;
 
-      items.push({ id: id++, t: tpl.t, p: tpl.p, due, g, quad: tpl.q, status, done, ...(at ? { at } : {}) });
+      /* 约七成任务有指派：一半给员工（部门随员工），一半只挂部门。 */
+      let deptId = 0, empId = 0;
+      if (Math.random() < 0.7) {
+        if (Math.random() < 0.5) {
+          const emp = pick(empList);
+          empId = emp.id;
+          deptId = emp.deptId;
+        } else {
+          deptId = pick(deptList).id;
+        }
+      }
+
+      items.push({ id: id++, t: tpl.t, due, tagList: [g], quad: tpl.q, status, done,
+        ...(deptId ? { deptId } : {}), ...(empId ? { empId } : {}), ...(at ? { at } : {}) });
     }
   }
 
-  return { items, sort: 'manual', nid: id,
+  return { items, sort: 'manual', nid: id, deptList, empList,
     titles: { quad: { ...DEFAULT_TITLES.quad }, col: { ...DEFAULT_TITLES.col } } };
 }

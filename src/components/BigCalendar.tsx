@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Tool from '../lib/tool.js'
-import { DAY, TODAY, WD, midnight, statusOf } from '../lib/todo.js'
+import { DAY, TODAY, WD, fmtDate, midnight, quadOf, statusOf, tagListOf } from '../lib/todo.js'
 import type { Item } from '../lib/types'
 
 const GRIP = (
@@ -111,8 +111,10 @@ let daysRef: { current: number[] } = { current: [] }
 
 /* 大日历网格：七列月历，格子内直接排任务条。桌面端全宽，手机上横滑。
    选中某天 → 下方弹层显示当天全部任务。 */
-export default function BigCalendar({ items, onEdit, onReschedule, onReorder }: {
+export default function BigCalendar({ items, empMap, deptMap, onEdit, onReschedule, onReorder }: {
   items: Item[]
+  empMap: Map<number, string>
+  deptMap: Map<number, string>
   onEdit: (i: Item) => void
   onReschedule: (id: number, ts: number) => void
   onReorder: (fromId: number, toId: number) => void
@@ -129,7 +131,7 @@ export default function BigCalendar({ items, onEdit, onReschedule, onReorder }: 
 
   const onDay = (ts: number) => items
     .filter(i => i.due && midnight(i.due) === ts)
-    .sort((a, b) => statusOf(a) - statusOf(b) || a.p - b.p)
+    .sort((a, b) => statusOf(a) - statusOf(b) || quadOf(a) - quadOf(b))
   const todayList = onDay(sel)
   const other = todayList.filter(i => statusOf(i) !== 2)
   const thisM = (ts: number) => new Date(ts).getMonth() === m
@@ -157,8 +159,7 @@ export default function BigCalendar({ items, onEdit, onReschedule, onReorder }: 
                 <div className="bcd">{new Date(ts).getDate()}</div>
                 <div className="bcs">
                   {list.slice(0, 3).map(i => (
-                    <div key={i.id} className={'bcstrip' + (statusOf(i) === 2 ? ' done' : '')}
-                         style={{ '--pri': i.p === 1 ? 'var(--p1)' : i.p === 2 ? 'var(--p2)' : 'var(--accent)' } as React.CSSProperties}>
+                    <div key={i.id} className={'bcstrip' + (statusOf(i) === 2 ? ' done' : '')}>
                       <button className="bcstrip-txt" onClick={e => { e.stopPropagation(); onEdit(i) }}>
                         {i.t}
                       </button>
@@ -177,24 +178,27 @@ export default function BigCalendar({ items, onEdit, onReschedule, onReorder }: 
 
       <div className="bcpanel">
         <div className="bcphead">
-          <b>{new Date(sel).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}</b>
+          <b>{fmtDate(sel)}</b>
           <span className="spacer" />
           <span className="n">{other.length ? other.length + ' 件待办' : '这一天没有待办'}</span>
         </div>
-        {todayList.map(i => (
+        {todayList.map(i => {
+          const who = i.empId ? empMap.get(i.empId) : i.deptId ? deptMap.get(i.deptId) : ''
+          return (
           <div key={i.id} className={'item' + (statusOf(i) === 2 ? ' done' : '')} data-id={i.id}>
             <div className="body" onClick={() => onEdit(i)}>
               <div className="txt">{i.t}</div>
               <div className="meta">
-                <span className={'pri p' + i.p}>{i.p === 1 ? '高' : i.p === 2 ? '中' : '低'}</span>
                 <span className="tag">{['待完成', '进行中', '已完成'][statusOf(i)]}</span>
-                {i.g ? <span className="tag">{i.g}</span> : null}
+                {who ? <span className="tag who">{who}</span> : null}
+                {tagListOf(i).map((kw: string) => <span className="tag" key={kw}>{kw}</span>)}
               </div>
             </div>
             <div className="handle" title="拖动排序"
                  onPointerDown={dragRow(i, onReorder)}>{GRIP}</div>
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Kit from './lib/kit.js'
 import Tool from './lib/tool.js'
 import { editItem, newItem } from './lib/edit.js'
-import { SORTS, TODAY, dueText, midnight, parseInput, seed, statusOf, visible } from './lib/todo.js'
+import { SORTS, TODAY, dueText, fmtDate, midnight, parseInput, seed, statusOf, tagListOf, visible } from './lib/todo.js'
 import { getState, putState } from './lib/api'
 import type { Item, State } from './lib/types'
 import Sidebar from './components/Sidebar'
@@ -11,16 +11,22 @@ import Kanban from './components/Kanban'
 import List from './components/List'
 import BigCalendar from './components/BigCalendar'
 import Progress from './components/Progress'
+import Team from './components/Team'
 
 const store = Tool.store('todo-day', null as State | null)
 const PLUS = <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
 
+/* 旧缓存/旧服务端数据没有部门员工字段：读到就补齐，避免下游到处是兜底。
+   旧数据还是单值分组 g：一并迁成 tagList，关键字聚合和筛选才有数。 */
+const norm = (s: State | null): State | null =>
+  s ? { deptList: [], empList: [], ...s, sort: (s.sort as string) === 'pri' ? 'manual' : s.sort,
+        items: s.items.map(i => ({ ...i, tagList: i.tagList || (i.g ? [i.g] : []) })) } : s
+
 export default function App() {
-  const [st, setSt] = useState<State>(() => store.get() || seed())
-  const [view, setView] = useState('board')      // board | list | cal | prog
+  const [st, setSt] = useState<State>(() => norm(store.get()) || (seed() as State))
+  const [view, setView] = useState('board')      // board | list | cal | prog | team
   const [listMode, setListMode] = useState('flow') // flow | all
-  const [group, setGroup] = useState('')         // '' = 全部分组
-  const [pri, setPri] = useState('')             // '' = 全部优先级
+  const [tag, setTag] = useState('')             // '' = 全部关键字
   const [filter, setFilter] = useState('all')
   const [daySel, setDaySel] = useState(0)
   const themeHost = useRef<HTMLDivElement>(null)
@@ -37,9 +43,10 @@ export default function App() {
     let cancelled = false
     getState().then(({ state }) => {
       if (cancelled || !state || !Array.isArray(state.items)) return
-      store.set(state)
-      live.current = state
-      setSt(state)
+      const fresh = norm(state)!
+      store.set(fresh)
+      live.current = fresh
+      setSt(fresh)
     }).catch(() => { /* 服务端不可达：保持本地缓存 */ })
     return () => { cancelled = true }
   }, [])
@@ -80,7 +87,7 @@ export default function App() {
         const doneN = todays.filter(i => i.done).length
         return Tool.poster({
           brand: '待办事项',
-          title: new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }),
+          title: fmtDate(Date.now()),
           subtitle: '今天要做的事',
           hero: {
             value: todays.length ? String(Math.round(doneN / todays.length * 100)) : '0',
@@ -98,17 +105,23 @@ export default function App() {
   }, [])
   useEffect(() => { if (themeHost.current) Kit.themeToggle(null, themeHost.current) }, [])
 
-  /* 分组 + 优先级筛选 */
-  const grouped = useMemo(() => {
-    let v = group ? st.items.filter(i => i.g === group) : st.items
-    if (pri) v = v.filter(i => i.p === +pri)
+  /* 关键字筛选：一条 todo 可挂多个关键字，选中即只显示带它的 */
+  const scoped = useMemo(() => {
+    let v = tag ? st.items.filter(i => tagListOf(i).includes(tag)) : st.items
     return v
-  }, [st.items, group, pri])
+  }, [st.items, tag])
   const shown = useMemo(() => {
-    let v = visible(grouped, filter, st.sort) as Item[]
+    let v = visible(scoped, filter, st.sort) as Item[]
     if (daySel) v = v.filter(i => i.due && midnight(i.due) === daySel)
     return v
-  }, [grouped, st.sort, filter, daySel])
+  }, [scoped, st.sort, filter, daySel])
+
+  /* 部门/员工 id → 名称：任务卡片上解析指派用。 */
+  const deptList = st.deptList || []
+  const empList = st.empList || []
+  const allTagList = useMemo(() => [...new Set(st.items.flatMap(i => tagListOf(i)))], [st.items])
+  const deptMap = useMemo(() => new Map(deptList.map(d => [d.id, d.n] as [number, string])), [deptList])
+  const empMap = useMemo(() => new Map(empList.map(e => [e.id, e.n] as [number, string])), [empList])
 
   /* 新建任务：弹居中面板，保存后插入。 */
   const openNew = (preset: { status?: number; quad?: number; t?: string } = {}) => {
@@ -119,7 +132,7 @@ export default function App() {
         nid: s.nid + 1,
       }))
       Tool.sound.pop(); Tool.haptic(10)
-    })
+    }, { deptList, empList, allTagList })
   }
 
   const setStatus = (id: number, sv: number) => patch(s => ({
@@ -137,14 +150,17 @@ export default function App() {
   const edit = (i: Item) => editItem(i, {
     onSave: (next: Item) => patch(s => ({ ...s, items: s.items.map(x => x.id === next.id ? next : x) })),
     onDelete: (dead: Item) => patch(s => ({ ...s, items: s.items.filter(x => x.id !== dead.id) })),
+    deptList,
+    empList,
+    allTagList,
   })
 
-  const titles: Record<string, string> = { board: '看板', list: '清单', cal: '日历', prog: '进度' }
+  const titles: Record<string, string> = { board: '看板', list: '清单', cal: '日历', prog: '进度', team: '人员' }
 
   return (
     <div className={'app v-' + view}>
-      <Sidebar items={st.items} view={view} group={group} pri={pri}
-               onNav={setView} onGroup={setGroup} onPri={setPri} themeHost={themeHost} />
+      <Sidebar items={st.items} view={view} tag={tag}
+               onNav={setView} onTag={setTag} themeHost={themeHost} />
 
       <div className="main">
         <div className="topbar">
@@ -161,7 +177,8 @@ export default function App() {
 
         <div className="content">
           {view === 'board' && (
-            <Board items={grouped} titles={st.titles} onToggle={toggle} onEdit={edit}
+            <Board items={scoped} titles={st.titles} empMap={empMap} deptMap={deptMap}
+                   onToggle={toggle} onEdit={edit}
                    onMove={(id, q) => patch(s => ({
                      ...s, items: s.items.map(x => x.id === id ? { ...x, quad: q } : x),
                    }))}
@@ -179,7 +196,8 @@ export default function App() {
           )}
 
           {view === 'list' && listMode === 'flow' && (
-            <Kanban items={grouped} titles={st.titles} onStatus={setStatus} onEdit={edit}
+            <Kanban items={scoped} titles={st.titles} empMap={empMap} deptMap={deptMap}
+                   onStatus={setStatus} onEdit={edit}
                    onRename={renameCol}
                    onAdd={(sv) => openNew({ status: sv })}
                     onReorder={(fromId, toId) => patch(s => {
@@ -207,12 +225,12 @@ export default function App() {
                 }}>{'排序 · ' + SORTS[st.sort]}</button>
                 {daySel ? (
                   <button className="chip" onClick={() => setDaySel(0)}>
-                    {'只看 ' + new Date(daySel).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }) + ' ✕'}
+                    {'只看 ' + fmtDate(daySel) + ' ✕'}
                   </button>
                 ) : null}
               </div>
               <div className="listwrap">
-                <List items={shown} filter={filter} sort={st.sort}
+                <List items={shown} filter={filter} sort={st.sort} empMap={empMap} deptMap={deptMap}
                       onToggle={toggle} onEdit={edit}
                       onReorder={(fromId, toId) => patch(s => {
                         const from = s.items.findIndex(x => x.id === fromId)
@@ -225,7 +243,8 @@ export default function App() {
             </>
           )}
 
-          {view === 'cal' && <BigCalendar items={grouped} onEdit={edit}
+          {view === 'cal' && <BigCalendar items={scoped} empMap={empMap} deptMap={deptMap}
+                    onEdit={edit}
                     onReschedule={(id, ts) => patch(s => ({
                       ...s, items: s.items.map(x => x.id === id ? { ...x, due: ts } : x),
                     }))}
@@ -237,16 +256,18 @@ export default function App() {
                       return s
                     })} />}
 
-          {view === 'prog' && <Progress items={grouped}
+          {view === 'prog' && <Progress items={scoped}
                     onClear={() => {
                       const n = st.items.filter(i => i.done).length
                       patch(s => ({ ...s, items: s.items.filter(i => !i.done) }))
                       Kit.toast('清掉了 ' + n + ' 条')
                     }}
                     onExportCSV={() => {
-                      Kit.download('待办.csv', Kit.toCSV([['内容', '分组', '优先级', '日期', '状态'],
-                        ...st.items.map(i => [i.t, i.g, ['', '高', '中', '低'][i.p],
-                          i.due ? new Date(i.due).toLocaleDateString('zh-CN') : '', i.done ? '已完成' : '未完成'])]))
+                      Kit.download('待办.csv', Kit.toCSV([['内容', '关键字', '部门', '员工', '日期', '状态'],
+                        ...st.items.map(i => [i.t, i.tagList.join(' '),
+                          i.deptId ? deptMap.get(i.deptId) || '' : '',
+                          i.empId ? empMap.get(i.empId) || '' : '',
+                          i.due ? fmtDate(i.due) : '', i.done ? '已完成' : '未完成'])]))
                       Kit.toast('已导出 CSV')
                     }}
                     onExportPoster={() => {
@@ -254,7 +275,7 @@ export default function App() {
                       const doneN = todays.filter(i => i.done).length
                       Tool.poster({
                         brand: '待办事项',
-                        title: new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }),
+                        title: fmtDate(Date.now()),
                         subtitle: '今天要做的事',
                         hero: {
                           value: todays.length ? String(Math.round(doneN / todays.length * 100)) : '0',
@@ -267,6 +288,8 @@ export default function App() {
                         footer: '待办事项 · TODO',
                       })
                     }} />}
+
+          {view === 'team' && <Team items={st.items} deptList={deptList} empList={empList} onPatch={patch} />}
         </div>
 
       </div>

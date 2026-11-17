@@ -5,7 +5,6 @@
   --muted:#69675c; --faint:#a4a196; --line:#e5e3da; --line-soft:#efeee7;
   --accent:#1f5c46; --accent-ink:#ffffff; --accent-soft:#e3ede9;
   --pos:#1f5c46; --neg:#b3402c; --warn:#a97516;
-  --p1:#b3402c; --p2:#a97516; --p3:#8d8a7f;
   --h0:#e7e5db; --h1:#cfe0d6; --h2:#9cc4b0; --h3:#5b9a7e; --h4:#1f5c46;
   --r:9px; --side-w:232px;
 }
@@ -13,7 +12,6 @@
   --bg:#0f0f0d; --panel:#171714; --raised:#1e1e1a; --ink:#eceade;
   --muted:#918e80; --faint:#615f55; --line:#2a2924; --line-soft:#20201c;
   --accent:#65b394; --accent-ink:#0c1a15; --accent-soft:#16241f;
-  --p1:#d9705c; --p2:#d0a24a; --p3:#7c7a6f;
   --h0:#232320; --h1:#1e3a30; --h2:#2d5c49; --h3:#448069; --h4:#65b394;
 }
 
@@ -117,8 +115,6 @@
         padding:8px 6px 8px 10px; background:var(--raised);
         border:1px solid var(--line-soft); border-radius:9px;
         user-select:none; touch-action:pan-y }
-.qcard::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
-                background:var(--pri, transparent); border-radius:9px 0 0 9px }
 .qcard .box{ width:18px; height:18px; flex:none; margin-top:1px }
 .qcard .qb{ flex:1; min-width:0; cursor:pointer }
 .qcard .qt{ font-size:13.5px; line-height:1.45; word-break:break-word;
@@ -153,8 +149,6 @@
   touch-action:pan-y; user-select:none }
 .item.dragging{ opacity:.5; background:var(--raised) }
 .item.dropbefore{ box-shadow:inset 0 2px 0 var(--accent) }
-.item::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
-  background:var(--pri, transparent) }
 .box{ position:relative; flex:none; width:21px; height:21px; margin-top:1px;
   border:1.6px solid var(--line); border-radius:6px; background:none; cursor:pointer;
   display:grid; place-items:center; transition:all var(--fast) }
@@ -171,11 +165,6 @@
 .meta{ display:flex; gap:9px; align-items:center; margin-top:4px; font-size:11px; color:var(--faint) }
 .meta .tag{ font-family:var(--mono); border:1px solid var(--line); border-radius:3px;
   padding:0 5px; color:var(--faint) }
-.meta .pri{ font-family:var(--mono); font-size:10px; border-radius:3px;
-  padding:0 4px; font-weight:600; line-height:1.5 }
-.meta .pri.p1{ color:var(--p1); background:color-mix(in srgb, var(--p1) 12%, transparent) }
-.meta .pri.p2{ color:var(--p2); background:color-mix(in srgb, var(--p2) 12%, transparent) }
-.meta .pri.p3{ color:var(--faint); background:color-mix(in srgb, var(--faint) 10%, transparent) }
 .meta .due.soon{ color:var(--warn) }
 .meta .due.late{ color:var(--neg) }
 .handle{ flex:none; width:26px; align-self:stretch; cursor:grab;
@@ -223,8 +212,6 @@
         padding:8px 6px 8px 10px; background:var(--raised);
         border:1px solid var(--line-soft); border-radius:9px;
         user-select:none; touch-action:pan-y }
-.kcard::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
-                background:var(--pri, transparent); border-radius:9px 0 0 9px }
 .kcard.ph{ opacity:.35 }
 .kcard.before{ box-shadow:inset 0 2px 0 var(--accent) }
 .kcard.ghost{ box-shadow:0 8px 22px rgba(0,0,0,.16); transform:scale(1.02); opacity:.95 }
@@ -268,7 +255,7 @@
   line-height:1.4; padding:3px 4px 3px 6px;
   border-radius:4px; border:0; white-space:nowrap; overflow:hidden;
   color:var(--ink);
-  background:var(--accent-soft); border-left:3px solid var(--pri, var(--accent));
+  background:var(--accent-soft); border-left:3px solid var(--accent);
   transition:filter var(--fast) }
 .bcstrip:hover{ filter:brightness(.97) }
 .bcstrip.done{ opacity:.45; text-decoration:line-through }
@@ -401,8 +388,8 @@
   transition:height .5s var(--ease) }
 .weekbar .l{ font-size:10px; color:var(--faint); font-family:var(--mono) }
 
-.prirow{ display:flex; gap:8px; flex-wrap:wrap }
-.prirow .chip.on{ background:var(--accent-soft); border-color:var(--accent); color:var(--accent) }
+.chiprow{ display:flex; gap:8px; flex-wrap:wrap }
+.chiprow .chip.on{ background:var(--accent-soft); border-color:var(--accent); color:var(--accent) }
 
 /* ── 任务详情富文本编辑器 ────────────────────────────────────────────────── */
 .note-editor{
@@ -417,3 +404,41 @@
 .note-editor img{ max-width:100%; border-radius:6px; margin:4px 0; display:block }
 .note-bar{ display:flex; gap:8px; margin-top:6px }
 .note-imgs{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px }
+
+/* ── 部门与员工 ───────────────────────────────────────────────────────────
+   指派人以 accent 色 chip 挂在任务卡 meta 行；人员页沿用纸质面板语言。 */
+.meta .tag.who{ color:var(--accent);
+  border-color:color-mix(in srgb, var(--accent) 38%, transparent);
+  background:color-mix(in srgb, var(--accent) 8%, transparent) }
+.whohint{ font-size:11px; color:var(--faint); padding-top:5px }
+
+.team2{ display:grid; grid-template-columns:1fr 320px; gap:24px; padding:16px 20px 20px; align-items:start }
+@media (min-width:1400px){ .team2{ padding:20px 32px 24px; gap:32px } }
+@media (max-width:900px){ .team2{ grid-template-columns:1fr; gap:16px } }
+.team-main,.team-side{ min-width:0 }
+.team-add{ display:flex; gap:8px; padding:2px 2px 12px }
+.team-add input{ flex:1; min-width:0; height:34px; padding:0 12px; font-size:13px; color:var(--ink);
+  background:var(--raised); border:1px solid var(--line); border-radius:var(--r); outline:none }
+.team-add input:focus{ border-color:var(--accent); background:var(--panel) }
+.team-add .btn{ flex:none; height:34px; padding:0 16px }
+.team-depts{ padding:0 2px 12px }
+.team-empty{ font-size:12px; color:var(--faint); padding:4px 2px 14px }
+.trow{ display:flex; align-items:center; gap:10px; padding:8px 12px; margin-bottom:6px;
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--r) }
+.trow .gdot{ width:8px; height:8px; border-radius:3px; flex:none }
+.trow .tnm{ font-size:13.5px; font-weight:560 }
+.trow .cnt{ margin-left:auto; font-family:var(--mono); font-style:normal; font-size:11px; color:var(--faint) }
+.trow .tdept{ display:flex; gap:5px; flex-wrap:wrap; margin-left:auto }
+.trow .tdept .chip{ font-size:11px; padding:3px 9px }
+.trow .tacts{ display:flex; gap:4px; flex:none; margin-left:8px }
+.trow .tacts .miniib{
+  width:20px; height:20px; border-radius:50%;
+  background:var(--muted); color:#fff; opacity:.55;
+  display:grid; place-items:center;
+  transition:opacity var(--fast), transform .12s var(--ease);
+  box-shadow:none; border:0; padding:0; margin:0; appearance:none;
+}
+.trow .tacts .miniib:hover{ opacity:1; transform:scale(1.08) }
+.trow .tacts .miniib svg{ width:9px; height:9px; stroke:currentColor; fill:none;
+  stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round }
+.grow .nm.wide{ width:auto; min-width:56px; flex:none }

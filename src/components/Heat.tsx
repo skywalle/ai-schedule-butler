@@ -1,13 +1,11 @@
 /* 完成热力格：列是周，行是周一到周日，和上面那本月历同一个起点。
    一年太长，手账只回看 18 周 —— 340px 的边栏里，再多一列格子就该眯眼看了。 */
 import { useState } from 'react'
-import { TODAY } from '../lib/todo.js'
+import { TODAY, fmtDate } from '../lib/todo.js'
 import { DAYS, WEEKS, counts, level, streak } from '../lib/heat.js'
 import type { Item } from '../lib/types'
 
 const WDL = ['一', '', '三', '', '五', '', '']
-const fmt = (ts: number) =>
-  new Date(ts).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })
 
 export default function Heat({ items }: { items: Item[] }) {
   /* 悬停哪一格，底下那行就报哪一天。系统 tooltip 要停留一秒才出来，等于没人
@@ -49,7 +47,7 @@ export default function Heat({ items }: { items: Item[] }) {
         </div>
 
         <div className="heatfoot">
-          <span>{hov ? `${fmt(hov)} · 完成 ${c[hov] || 0} 件`
+          <span>{hov ? `${fmtDate(hov)} · 完成 ${c[hov] || 0} 件`
             : run ? `连续 ${run} 天有进展` : '今天还没勾掉任何一件'}</span>
           <span className="hleg">少{[0, 1, 2, 3, 4].map(l =>
             <i className={'hc l' + l} key={l} />)}多</span>

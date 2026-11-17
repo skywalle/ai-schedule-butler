@@ -1,7 +1,7 @@
 /* 一天一格，格子底下是那天的负载。点一格就把列表收到那一天，再点一次放开 ——
    日历在这里是筛选器，不是另一个视图，所以它和下面那张列表永远是同一份数据。 */
 import Tool from '../lib/tool.js'
-import { DAY, TODAY, WD, loadOn, midnight } from '../lib/todo.js'
+import { DAY, TODAY, WD, fmtDate, loadOn, midnight } from '../lib/todo.js'
 import type { Item } from '../lib/types'
 
 const PREV = <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg>
@@ -55,7 +55,7 @@ export default function Calendar({ items, month, daySel, onMonth, onPick }: {
                 + (ts === TODAY ? ' today' : '')
                 + (ts === daySel ? ' on' : '')}
               aria-current={ts === daySel ? 'true' : undefined}
-              aria-label={d.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}
+              aria-label={fmtDate(ts)}
               onClick={() => {
                 onPick(daySel === ts ? 0 : ts)
                 if (daySel !== ts) { const m = new Date(ts); m.setDate(1); onMonth(m) }

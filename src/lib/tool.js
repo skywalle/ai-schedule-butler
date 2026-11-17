@@ -369,6 +369,11 @@ const Tool = (() => {
   }
 
   /* ── bottom sheet ──────────────────────────────────────────────────────── */
+  /**
+   * 居中弹层：body 挂内容，actions 渲染底部按钮；
+   * onClick 返回 false 时点击后不自动关闭。
+   * @param {{ title?: string, body?: Node | string, actions?: { label: string, primary?: boolean, onClick?: () => (void | boolean) }[] }} opt
+   */
   function sheet({ title = '', body, actions = [] }) {
     const scrim = document.createElement('div');
     scrim.className = 'sheet-scrim';
