@@ -1,4 +1,4 @@
-/* AI日程大管家 —— 侧边栏 + 四视图（看板 / 清单 / 日历 / 进度）。
+/* AI日程大管家 —— 侧边栏 + 四视图（象限 / 清单 / 日历 / 进度）。
    纸质手账的视觉语言：暖白、发丝线、勾掉的事划一道。数据存 localStorage。 */
 :root{
   --bg:#f2f1ec; --panel:#fbfaf7; --raised:#f3f2ed; --ink:#15150f;
@@ -442,3 +442,115 @@
 .trow .tacts .miniib svg{ width:9px; height:9px; stroke:currentColor; fill:none;
   stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round }
 .grow .nm.wide{ width:auto; min-width:56px; flex:none }
+
+/* ── 番茄钟 ────────────────────────────────────────────────────────────────
+   任务卡上的番茄按钮 + 计时面板。计时内嵌在会话所属任务卡的第二行；
+   任务不在当前视图时右下角悬浮坞兜底。按钮常态素、悬停红、进行中有底色。 */
+.pomoib{ position:relative; flex:none; width:24px; height:24px; display:grid; place-items:center;
+  padding:0; border:1px solid var(--line); border-radius:6px; color:var(--faint);
+  background:transparent; cursor:pointer; appearance:none;
+  transition:color var(--fast), border-color var(--fast), background var(--fast) }
+.pomoib svg{ width:14px; height:14px; stroke:currentColor; fill:none;
+  stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round }
+.pomoib:hover{ color:var(--neg); border-color:var(--neg) }
+.pomoib.on{ color:#fff; background:var(--neg); border-color:var(--neg) }
+.pomoib b{ position:absolute; top:-6px; right:-7px; min-width:14px; height:14px; padding:0 3px;
+  border-radius:7px; background:var(--accent); color:#fff;
+  font-family:var(--mono); font-size:9px; font-weight:600; line-height:14px; text-align:center }
+.pomoib.on b{ background:#fff; color:var(--neg) }
+
+/* 计时面板：内嵌与悬浮坞共用。进度环 20px 半径，休息态换 accent 色。 */
+.pomopanel{ display:flex; align-items:center; gap:12px; min-width:0 }
+.pomopanel .pp-top{ display:flex; align-items:center; gap:10px; min-width:0; flex:1 }
+.pomopanel .pp-ring{ position:relative; width:36px; height:36px; flex:none }
+.pomopanel .pp-ring svg{ width:36px; height:36px; transform:rotate(-90deg) }
+.pomopanel .pp-ring circle{ fill:none; stroke-width:4.5 }
+.pomopanel .pp-ring .bg{ stroke:var(--line) }
+.pomopanel .pp-ring .fg{ stroke:var(--neg); stroke-linecap:round;
+  transition:stroke-dashoffset .25s linear }
+.pomopanel.brk .pp-ring .fg{ stroke:var(--accent) }
+.pomopanel .pp-ring .t{ position:absolute; inset:0; display:grid; place-items:center;
+  font-family:var(--mono); font-size:9.5px; font-weight:600; color:var(--ink) }
+.pomopanel .pp-info{ min-width:0; flex:1 }
+.pomopanel .pp-task{ font-size:13px; font-weight:560; line-height:1.4;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.pomopanel .pp-phase{ margin-top:3px; font-size:11px; color:var(--faint);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.pomopanel .pp-act{ display:flex; gap:6px; margin-left:auto; flex:none }
+.pomopanel .pp-act .btn{ height:26px; padding:0 10px; font-size:11.5px }
+
+/* 卡片内嵌：独占任务卡第二行，专注红 / 休息绿 的淡色底。
+   看板列窄，排不下时按钮折到下一行，阶段文字截断不换行。 */
+.item, .qcard, .kcard{ flex-wrap:wrap }
+.pomo-inline{ flex:1 0 100%; margin-top:8px; padding:8px 12px;
+  border:1px solid color-mix(in srgb, var(--neg) 28%, transparent); border-radius:8px;
+  background:color-mix(in srgb, var(--neg) 5%, transparent) }
+.pomo-inline:has(.brk){ border-color:color-mix(in srgb, var(--accent) 30%, transparent);
+  background:color-mix(in srgb, var(--accent) 6%, transparent) }
+.pomopanel.incard{ flex-wrap:wrap; row-gap:8px }
+.pomopanel.incard .pp-top{ flex:1 1 110px; min-width:0 }
+.pomopanel.incard .pp-act .btn{ padding:0 8px; font-size:11px }
+
+/* 悬浮坞兜底：固定在右下角，内部纵排、进度环放大。 */
+.pomodock{ position:fixed; right:18px; bottom:18px; z-index:120; width:236px;
+  padding:14px; background:var(--raised); border:1px solid var(--line); border-radius:12px;
+  box-shadow:0 12px 34px rgba(0,0,0,.16) }
+.pomodock .pomopanel{ flex-direction:column; align-items:stretch; gap:12px }
+.pomodock .pp-top{ flex:none }
+.pomodock .pp-ring{ width:64px; height:64px; margin:0 auto }
+.pomodock .pp-ring svg{ width:64px; height:64px }
+.pomodock .pp-ring .t{ font-size:14.5px }
+.pomodock .pp-act{ margin-left:0 }
+.pomodock .pp-act .btn{ flex:1; height:30px; font-size:12px }
+@media (max-width:640px){ .pomodock{ right:10px; bottom:10px; width:212px } }
+
+/* ── 今日待办页：页内快速录入 ──────────────────────────────────────────────
+   复用闲置的 .composer/.addbtn（原底部录入条样式）。表单走原生提交：
+   IME 组字中的回车被浏览器吞掉，天然防误提交。 */
+.todaypage{ display:flex; flex-direction:column; padding:16px 20px 20px; width:100% }
+@media (min-width:1400px){ .todaypage{ padding:20px 32px 24px } }
+@media (max-width:640px){ .todaypage{ padding:10px 8px 14px } }
+.todaypage .composer{ max-width:none; margin:0 }
+.todaymeta{ display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  padding:8px 4px 0; font-size:11px; color:var(--faint) }
+.visually-hidden{ position:absolute; clip-path:inset(50%); overflow:hidden; width:1px;
+  height:1px; margin:-1px; padding:0; border:0; white-space:nowrap }
+
+/* ── 规划表：左逾期列 + 今天起 7 天列 ──────────────────────────────────────
+   列定宽横排，窄屏横向滚动；卡片复用 .kcard 系样式。 */
+.planner{ display:flex; gap:12px; padding:14px 20px; align-items:stretch; overflow-x:auto;
+  min-height:0 }
+@media (min-width:1400px){ .planner{ padding:20px 32px; gap:14px } }
+.pcol{ flex:none; width:238px; display:flex; flex-direction:column;
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--r-lg);
+  max-height:calc(100dvh - 130px) }
+.pcol.late{ width:266px }
+.pcol.today{ border-color:var(--accent) }
+.pcol.over{ border-color:var(--accent); box-shadow:0 0 0 1.5px var(--accent) }
+.phead{ display:flex; align-items:center; gap:6px; padding:10px 12px 6px }
+.phead b{ font-size:13.5px }
+.phead .pd{ font-size:11.5px; color:var(--faint); font-family:var(--mono) }
+.phead .n{ margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--faint) }
+.pico{ display:none; width:15px; height:15px; flex:none }
+.pico svg{ width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:1.7;
+  stroke-linecap:round; stroke-linejoin:round }
+.pcol.today .pico.sun{ display:block; color:var(--accent) }
+.pcol.late .pico.late{ display:block; color:var(--neg) }
+.ptag{ font-style:normal; font-size:10px; line-height:1; padding:2.5px 7px 3px;
+  border-radius:99px; background:var(--accent); color:var(--accent-ink) }
+.padd{ display:flex; align-items:center; justify-content:center; gap:5px;
+  margin:2px 8px 6px; padding:6px; font-size:12.5px; color:var(--faint);
+  background:transparent; border:1px dashed var(--line); border-radius:9px; cursor:pointer }
+.padd:hover{ color:var(--accent); border-color:var(--accent) }
+.padd svg{ width:12px; height:12px; stroke:currentColor; fill:none;
+  stroke-width:1.8; stroke-linecap:round }
+.plist{ display:flex; flex-direction:column; gap:5px; padding:0 6px 8px;
+  overflow-y:auto; min-height:0; flex:1 }
+.pcard.before{ box-shadow:inset 0 2px 0 var(--accent) }
+.kcard .pbox{ flex:none; width:20px; height:20px; margin-top:1px; border-radius:50%;
+  border:1.4px solid var(--line); color:transparent; display:grid; place-items:center }
+.kcard .pbox svg{ width:11px; height:11px; stroke:currentColor; fill:none;
+  stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round }
+.kcard .pbox:hover{ border-color:var(--accent); color:var(--accent) }
+.kcard.done .pbox{ border-color:var(--accent); background:var(--accent); color:var(--accent-ink) }
+.tag.doing{ color:var(--accent); border-color:color-mix(in srgb, var(--accent) 40%, transparent) }

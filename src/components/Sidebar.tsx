@@ -1,8 +1,9 @@
 import Kit from '../lib/kit.js'
-import { statusOf, tagListOf } from '../lib/todo.js'
+import { TODAY, midnight, statusOf, tagListOf } from '../lib/todo.js'
 import type { Item } from '../lib/types'
 
 const ICO = {
+  today: <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><circle cx="7.5" cy="14.5" r="1.1"/><circle cx="12" cy="14.5" r="1.1"/><circle cx="16.5" cy="14.5" r="1.1"/></svg>,
   board: <svg viewBox="0 0 24 24"><path d="M4 4h7v9H4zM13 4h7v5h-7zM13 11h7v9h-7zM4 15h7v5H4z"/></svg>,
   list: <svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>,
   cal: <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>,
@@ -12,7 +13,8 @@ const ICO = {
   moon: <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>,
 }
 const NAV = [
-  { id: 'board', n: '看板' },
+  { id: 'today', n: '规划' },
+  { id: 'board', n: '象限' },
   { id: 'list', n: '清单' },
   { id: 'cal', n: '日历' },
   { id: 'prog', n: '进度' },
@@ -35,6 +37,8 @@ export default function Sidebar({ items, view, tag, onNav, onTag, themeHost }: {
   themeHost: React.RefObject<HTMLDivElement | null>
 }) {
   const open = items.filter(i => statusOf(i) !== 2).length
+  /* 「规划」角标：逾期且未完成的数量，是规划页左列的压力指标。 */
+  const todayOpen = items.filter(i => statusOf(i) !== 2 && i.due && midnight(i.due) < TODAY).length
   /* 关键字聚合：多关键字的 todo 在每个关键字下都计数。 */
   const tagEntryList = Object.entries(
     items.reduce((m: Record<string, number>, i) => {
@@ -59,7 +63,8 @@ export default function Sidebar({ items, view, tag, onNav, onTag, themeHost }: {
                   onClick={() => onNav(v.id)}>
             {ICO[v.id as keyof typeof ICO]}
             <span>{v.n}</span>
-            {v.id === 'list' ? <i className="cnt">{open}</i> : null}
+            {v.id === 'today' ? <i className="cnt">{todayOpen}</i>
+              : v.id === 'list' ? <i className="cnt">{open}</i> : null}
           </button>
         ))}
       </nav>

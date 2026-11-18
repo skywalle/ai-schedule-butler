@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Kit from './lib/kit.js'
 import Tool from './lib/tool.js'
 import { editItem, newItem } from './lib/edit.js'
-import { SORTS, TODAY, dueText, fmtDate, midnight, parseInput, seed, statusOf, tagListOf, visible } from './lib/todo.js'
+import { SORTS, TODAY, DAY, dueText, fmtDate, midnight, seed, statusOf, tagListOf, visible } from './lib/todo.js'
+import { getBreakMin, makeBreakRun, makeFocusRun, nextFocusRun, reviveRun } from './lib/pomo.js'
 import { getState, putState } from './lib/api'
 import type { Item, State } from './lib/types'
 import Sidebar from './components/Sidebar'
@@ -12,19 +13,23 @@ import List from './components/List'
 import BigCalendar from './components/BigCalendar'
 import Progress from './components/Progress'
 import Team from './components/Team'
+import Planner from './components/Planner'
+import PomoDock, { type PomoCtl } from './components/PomoDock'
 
 const store = Tool.store('todo-day', null as State | null)
 const PLUS = <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
 
 /* 旧缓存/旧服务端数据没有部门员工字段：读到就补齐，避免下游到处是兜底。
-   旧数据还是单值分组 g：一并迁成 tagList，关键字聚合和筛选才有数。 */
+   旧数据还是单值分组 g：一并迁成 tagList，关键字聚合和筛选才有数。
+   番茄钟会话按 endAt 重算剩余：整状态可能是几分钟前同步过来的。 */
 const norm = (s: State | null): State | null =>
   s ? { deptList: [], empList: [], ...s, sort: (s.sort as string) === 'pri' ? 'manual' : s.sort,
+        pomoRun: reviveRun(s.pomoRun),
         items: s.items.map(i => ({ ...i, tagList: i.tagList || (i.g ? [i.g] : []) })) } : s
 
 export default function App() {
   const [st, setSt] = useState<State>(() => norm(store.get()) || (seed() as State))
-  const [view, setView] = useState('board')      // board | list | cal | prog | team
+  const [view, setView] = useState('board')      // today | board | list | cal | prog | team
   const [listMode, setListMode] = useState('flow') // flow | all
   const [tag, setTag] = useState('')             // '' = 全部关键字
   const [filter, setFilter] = useState('all')
@@ -62,6 +67,7 @@ export default function App() {
     return () => clearTimeout(pushTimer.current)
   }, [st])
   const patch = (f: (s: State) => State) => setSt(s => f({ ...s, items: s.items.slice() }))
+
   /* 模式切换 seg：清单页挂载时绑定。 */
   useEffect(() => {
     if (view === 'list' && modeEl.current) {
@@ -103,7 +109,11 @@ export default function App() {
     })
     return () => { host.innerHTML = '' }
   }, [])
-  useEffect(() => { if (themeHost.current) Kit.themeToggle(null, themeHost.current) }, [])
+  useEffect(() => {
+    if (!themeHost.current) return
+    const btn = Kit.themeToggle(null, themeHost.current)
+    return () => btn.remove()
+  }, [])
 
   /* 关键字筛选：一条 todo 可挂多个关键字，选中即只显示带它的 */
   const scoped = useMemo(() => {
@@ -116,6 +126,10 @@ export default function App() {
     return v
   }, [scoped, st.sort, filter, daySel])
 
+  /* 「规划」视图：逾期 + 今天起 7 天内的条目，按天分列。 */
+  const todayItems = useMemo(() =>
+    scoped.filter(i => i.due && midnight(i.due) <= TODAY + DAY * 6) as Item[], [scoped])
+
   /* 部门/员工 id → 名称：任务卡片上解析指派用。 */
   const deptList = st.deptList || []
   const empList = st.empList || []
@@ -124,7 +138,7 @@ export default function App() {
   const empMap = useMemo(() => new Map(empList.map(e => [e.id, e.n] as [number, string])), [empList])
 
   /* 新建任务：弹居中面板，保存后插入。 */
-  const openNew = (preset: { status?: number; quad?: number; t?: string } = {}) => {
+  const openNew = (preset: { status?: number; quad?: number; t?: string; due?: number } = {}) => {
     newItem(preset, (item) => {
       patch(s => ({
         ...s,
@@ -138,7 +152,7 @@ export default function App() {
   const setStatus = (id: number, sv: number) => patch(s => ({
     ...s,
     items: s.items.map(x => x.id === id
-      ? { ...x, status: sv, done: sv === 2, at: sv === 2 ? (x.at || Date.now()) : 0 } : x),
+      ? { ...x, status: sv as 0 | 1 | 2, done: sv === 2, at: sv === 2 ? (x.at || Date.now()) : 0 } : x),
   }))
   const toggle = (i: Item) => setStatus(i.id, statusOf(i) === 2 ? 0 : 2)
   const renameQuad = (q: number, name: string) => patch(s => ({
@@ -155,7 +169,74 @@ export default function App() {
     allTagList,
   })
 
-  const titles: Record<string, string> = { board: '看板', list: '清单', cal: '日历', prog: '进度', team: '人员' }
+  /* ── 番茄钟 ────────────────────────────────────────────────────────────
+     会话存进整状态：改 pomoRun 走同一个 patch，防抖推送天然覆盖。
+     开始专注把任务置为「进行中」；自然归零由悬浮坞回调 onPhaseEnd 结算。 */
+  const startPomo = (i: Item) => {
+    patch(s => ({
+      ...s,
+      pomoRun: makeFocusRun(i.id),
+      items: s.items.map(x => x.id === i.id && statusOf(x) !== 2
+        ? { ...x, status: 1, done: false } : x),
+    }))
+    Tool.sound.pop(); Tool.haptic(10)
+  }
+  const togglePausePomo = () => patch(s => {
+    const r = s.pomoRun
+    if (!r) return s
+    return r.paused
+      ? { ...s, pomoRun: { ...r, paused: false, endAt: Date.now() + r.leftMs } }
+      : { ...s, pomoRun: { ...r, paused: true, leftMs: Math.max(0, r.endAt - Date.now()) } }
+  })
+  /* 提前完成：计 1 个番茄并结束会话，任务状态由用户另行勾选。 */
+  const finishPomoEarly = () => patch(s => {
+    const r = s.pomoRun
+    if (!r || r.kind !== 'focus') return s
+    return {
+      ...s,
+      pomoRun: undefined,
+      items: s.items.map(x => x.id === r.itemId ? { ...x, pomo: (x.pomo || 0) + 1 } : x),
+    }
+  })
+  const dropPomo = () => patch(s => ({ ...s, pomoRun: undefined }))
+  const nextPomo = () => patch(s => ({
+    ...s, pomoRun: s.pomoRun ? nextFocusRun(s.pomoRun) : s.pomoRun,
+  }))
+  const onPhaseEnd = () => {
+    const r = live.current.pomoRun
+    if (!r) return
+    if (r.kind === 'focus') {
+      patch(s => ({
+        ...s,
+        pomoRun: makeBreakRun(r),
+        items: s.items.map(x => x.id === r.itemId ? { ...x, pomo: (x.pomo || 0) + 1 } : x),
+      }))
+      Tool.sound.win(); Tool.haptic(30)
+      Kit.toast('专注完成，休息 ' + getBreakMin(r.cycle + 1) + ' 分钟')
+    } else {
+      patch(s => ({ ...s, pomoRun: { ...r, paused: true, leftMs: 0 } }))
+      Tool.sound.ding(); Tool.haptic(30)
+      Kit.toast('休息结束')
+    }
+  }
+  const pomoItem = st.pomoRun ? st.items.find(i => i.id === st.pomoRun!.itemId) : undefined
+  /* 会话挂着的任务被删（可能来自 MCP 或别的标签页）：会话一并清掉。 */
+  useEffect(() => {
+    if (st.pomoRun && !pomoItem) patch(s => ({ ...s, pomoRun: undefined }))
+  }, [st.pomoRun, pomoItem])
+
+  /* 计时面板嵌在会话所属的任务卡里；任务不在当前视图时悬浮坞兜底。 */
+  const [inlineOn, setInlineOn] = useState(false)
+  const inlineRef = useRef(false)
+  const reportInline = useCallback((v: boolean) => {
+    if (inlineRef.current === v) return
+    inlineRef.current = v
+    setInlineOn(v)
+  }, [])
+  const pomoCtl: PomoCtl = { run: st.pomoRun, pause: togglePausePomo, finish: finishPomoEarly,
+                             drop: dropPomo, next: nextPomo, end: onPhaseEnd }
+
+  const titles: Record<string, string> = { today: '规划', board: '象限', list: '清单', cal: '日历', prog: '进度', team: '人员' }
 
   return (
     <div className={'app v-' + view}>
@@ -176,11 +257,31 @@ export default function App() {
         </div>
 
         <div className="content">
+          {view === 'today' && (
+            <Planner items={todayItems} empMap={empMap} deptMap={deptMap}
+                   onToggle={toggle} onEdit={edit}
+                   onPomo={startPomo} pomoId={pomoItem?.id || 0}
+                   pomo={pomoCtl} onInlineMount={reportInline}
+                   onAdd={(due) => openNew({ due })}
+                   onReschedule={(id, ts) => patch(s => ({
+                     ...s, items: s.items.map(x => x.id === id ? { ...x, due: ts } : x),
+                   }))}
+                   onReorder={(fromId, toId) => patch(s => {
+                     const from = s.items.findIndex(x => x.id === fromId)
+                     const [moved] = s.items.splice(from, 1)
+                     const to = s.items.findIndex(x => x.id === toId)
+                     s.items.splice(to < 0 ? s.items.length : to, 0, moved)
+                     return s
+                   })} />
+          )}
+
           {view === 'board' && (
             <Board items={scoped} titles={st.titles} empMap={empMap} deptMap={deptMap}
                    onToggle={toggle} onEdit={edit}
+                   onPomo={startPomo} pomoId={pomoItem?.id || 0}
+                   pomo={pomoCtl} onInlineMount={reportInline}
                    onMove={(id, q) => patch(s => ({
-                     ...s, items: s.items.map(x => x.id === id ? { ...x, quad: q } : x),
+                     ...s, items: s.items.map(x => x.id === id ? { ...x, quad: q as 1 | 2 | 3 | 4 } : x),
                    }))}
                    onRename={renameQuad}
                    onAdd={(q) => openNew({ quad: q })} />
@@ -198,6 +299,8 @@ export default function App() {
           {view === 'list' && listMode === 'flow' && (
             <Kanban items={scoped} titles={st.titles} empMap={empMap} deptMap={deptMap}
                    onStatus={setStatus} onEdit={edit}
+                   onPomo={startPomo} pomoId={pomoItem?.id || 0}
+                   pomo={pomoCtl} onInlineMount={reportInline}
                    onRename={renameCol}
                    onAdd={(sv) => openNew({ status: sv })}
                     onReorder={(fromId, toId) => patch(s => {
@@ -232,6 +335,8 @@ export default function App() {
               <div className="listwrap">
                 <List items={shown} filter={filter} sort={st.sort} empMap={empMap} deptMap={deptMap}
                       onToggle={toggle} onEdit={edit}
+                      onPomo={startPomo} pomoId={pomoItem?.id || 0}
+                      pomo={pomoCtl} onInlineMount={reportInline}
                       onReorder={(fromId, toId) => patch(s => {
                         const from = s.items.findIndex(x => x.id === fromId)
                         const [moved] = s.items.splice(from, 1)
@@ -293,6 +398,8 @@ export default function App() {
         </div>
 
       </div>
+
+      <PomoDock ctl={pomoCtl} hidden={inlineOn} title={pomoItem?.t || ''} />
     </div>
   )
 }

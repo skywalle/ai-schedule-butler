@@ -1,8 +1,16 @@
 import Tool from '../lib/tool.js'
 import { QUADS, TODAY, dueText, midnight, quadOf, tagListOf } from '../lib/todo.js'
+import { getPomoCount } from '../lib/pomo.js'
+import { PomoInline, type PomoCtl } from './PomoDock'
 import type { Item, State } from '../lib/types'
 
 const CHECK = <svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5" /></svg>
+const TOMATO = (
+  <svg viewBox="0 0 24 24">
+    <circle cx="12" cy="13.5" r="7.5" />
+    <path d="M12 6.5c0-1.6 1-2.6 2.4-3.1M12 6.5c-.4-1.4-1.8-2-3.2-2.1M12 6.5v1.8" />
+  </svg>
+)
 const GRIP = (
   <svg viewBox="0 0 24 24" fill="none">
     <path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"
@@ -76,13 +84,17 @@ function dragTo(item: Item, onMove: (id: number, q: number) => void) {
   }
 }
 
-export default function Board({ items, titles, empMap, deptMap, onToggle, onEdit, onMove, onRename, onAdd }: {
+export default function Board({ items, titles, empMap, deptMap, onToggle, onEdit, onPomo, pomoId, pomo, onInlineMount, onMove, onRename, onAdd }: {
   items: Item[]
   titles: State['titles']
   empMap: Map<number, string>
   deptMap: Map<number, string>
   onToggle: (i: Item) => void
   onEdit: (i: Item) => void
+  onPomo: (i: Item) => void
+  pomoId: number
+  pomo: PomoCtl
+  onInlineMount: (v: boolean) => void
   onMove: (id: number, q: number) => void
   onRename: (q: number, name: string) => void
   onAdd: (q: number) => void
@@ -152,6 +164,12 @@ export default function Board({ items, titles, empMap, deptMap, onToggle, onEdit
                       </div>
                     ) : null}
                   </div>
+                  {pomoId === i.id && <PomoInline ctl={pomo} onMount={onInlineMount} />}
+                  <button className={'pomoib' + (pomoId === i.id ? ' on' : '')} type="button"
+                          title="番茄钟"
+                          onClick={e => { e.stopPropagation(); onPomo(i) }}>
+                    {TOMATO}{getPomoCount(i) ? <b>{getPomoCount(i)}</b> : null}
+                  </button>
                   <div className="grip" title="按住这里拖到别的象限">{GRIP}</div>
                 </div>
                 )

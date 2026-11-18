@@ -597,7 +597,7 @@ const Tool = (() => {
   }
 
   /* Standard export trio, wired into a topbar in one call. */
-  function exportBar(host, { poster: makePoster, link: makeLink, print: doPrint = true, name = 'result' }) {
+  function exportBar(host, { poster: makePoster, link: makeLink = null, print: doPrint = true, name = 'result' }) {
     if (typeof host === 'string') host = document.querySelector(host);
     if (!host) return;
     if (makePoster) {

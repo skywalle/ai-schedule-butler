@@ -28,8 +28,10 @@ src/components/
   Recap.tsx           本周读数 + 按分组进度
   Stats.tsx           统计屏：四项计数、近 7 天柱图、分组完成度
   Team.tsx            人员页：部门与员工的增删改，任务量侧栏
+  PomoDock.tsx        番茄钟悬浮坞：右下角全局计时，专注/休息回合
 src/lib/
   api.ts             服务端同步客户端：整体拉取/整体保存
+  pomo.js            番茄钟纯逻辑：时长常量、会话工厂、刷新重算剩余
   todo.js             纯逻辑：自然语言解析（「明天 交周报 !」「#分组」）、分桶、排序、种子数据
   heat.js             热力格数据：种子化历史 + 真实完成数，streak / best / recent
   edit.js             编辑抽屉（Tool.sheet）：含部门/员工指派选择
@@ -61,9 +63,13 @@ dist/                 已构建产物，可直接静态部署
 让 AI 助手直接管理待办。数据访问复用 `repo/state.js`，校验复用 `repo/check-state.js`，
 新增条目复用前端 `parseInput`，「明天 交周报 !」这类自然语言与网页录入语义一致。
 
-工具：`getListTodo`（过滤读取）、`addItemTodo`（自然语言新增）、`setStatusTodo`、
+工具：`getListTodo`（过滤读取，结果含每条已完成的番茄数 `pomo`）、`addItemTodo`（自然语言新增）、`setStatusTodo`、
 `patchItemTodo`（改标题/日期/优先级/象限/关键字/备注）、`setAssignTodo`（指派）、
 `removeItemTodo`（批量删除）、`getListDept` / `getListEmp`。
+
+番茄钟（25 分钟专注 + 5 分钟休息，每 4 个专注长休 15 分钟）由网页发起：
+任务卡点番茄按钮开始，全局悬浮坞计时，会话存进整状态（`pomoRun`）可刷新续跑；
+AI 侧只读番茄数，不直接操作计时。
 
 接入方式：在 MCP 客户端注册 stdio server，命令
 `node /home/skywalle/code/webstrom/dgj-ai-studio/server/src/mcp/server.js`

@@ -102,11 +102,11 @@ function tagInput({ initialTagList = [], allTagList = [] }){
 }
 
 /* 通用任务面板：编辑已有任务或新建任务共用。
-   preset: { status?, quad?, t? } — 新建时的默认值。 */
+   preset: { status?, quad?, t?, due? } — 新建时的默认值。 */
 export function taskSheet({ title, item, preset = {}, deptList = [], empList = [], allTagList = [], onSave, onDelete }){
   const isNew = !item;
   const base = item || {
-    id: 0, t: preset.t || '', due: 0,
+    id: 0, t: preset.t || '', due: preset.due || 0,
     tagList: preset.tagList || [], quad: preset.quad ?? 4, status: preset.status ?? 0, done: false,
   };
 

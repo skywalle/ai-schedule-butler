@@ -1,10 +1,18 @@
-import { Fragment } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import Kit from '../lib/kit.js'
 import Tool from '../lib/tool.js'
 import { ORDER, TODAY, bucketOf, dueText, midnight, quadOf, tagListOf } from '../lib/todo.js'
+import { getPomoCount } from '../lib/pomo.js'
+import { PomoInline, type PomoCtl } from './PomoDock'
 import type { Item, State } from '../lib/types'
 
 const CHECK = <svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5" /></svg>
+const TOMATO = (
+  <svg viewBox="0 0 24 24">
+    <circle cx="12" cy="13.5" r="7.5" />
+    <path d="M12 6.5c0-1.6 1-2.6 2.4-3.1M12 6.5c-.4-1.4-1.8-2-3.2-2.1M12 6.5v1.8" />
+  </svg>
+)
 const GRIP = (
   <svg viewBox="0 0 24 24" fill="none">
     <path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"
@@ -50,14 +58,19 @@ function useDrag(sort: State['sort'], reorder: (fromId: number, toId: number) =>
   }
 }
 
-export default function List({ items, filter, sort, empMap, deptMap, onToggle, onEdit, onReorder }: {
+export default function List({ items, filter, sort, empMap, deptMap, emptyHint, onToggle, onEdit, onPomo, pomoId, pomo, onInlineMount, onReorder }: {
   items: Item[]
   filter: string
   sort: State['sort']
   empMap: Map<number, string>
   deptMap: Map<number, string>
+  emptyHint?: ReactNode
   onToggle: (i: Item) => void
   onEdit: (i: Item) => void
+  onPomo: (i: Item) => void
+  pomoId: number
+  pomo: PomoCtl
+  onInlineMount: (v: boolean) => void
   onReorder: (fromId: number, toId: number) => void
 }) {
   const drag = useDrag(sort, onReorder)
@@ -68,7 +81,7 @@ export default function List({ items, filter, sort, empMap, deptMap, onToggle, o
     <div className="empty">
       {CHECK}
       <div>{filter === 'done' ? '还没有勾掉的事。'
-        : <>这里是空的。<br />在下面那一栏加一件事。</>}</div>
+        : emptyHint || <>这里是空的。<br />在下面那一栏加一件事。</>}</div>
     </div>
   )
 
@@ -100,6 +113,12 @@ export default function List({ items, filter, sort, empMap, deptMap, onToggle, o
                   </div>
                 )}
               </div>
+              {pomoId === i.id && <PomoInline ctl={pomo} onMount={onInlineMount} />}
+              <button className={'pomoib' + (pomoId === i.id ? ' on' : '')} type="button"
+                      title="番茄钟"
+                      onClick={e => { e.stopPropagation(); onPomo(i) }}>
+                {TOMATO}{getPomoCount(i) ? <b>{getPomoCount(i)}</b> : null}
+              </button>
               <div className="handle" title="拖动排序" onPointerDown={drag(i)}>{GRIP}</div>
             </div>
             )

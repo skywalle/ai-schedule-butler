@@ -90,6 +90,7 @@ function shapeItem(item, today, lib) {
     deptId: item.deptId || 0,
     empId: item.empId || 0,
     note: item.note || '',
+    pomo: item.pomo || 0,
   };
 }
 

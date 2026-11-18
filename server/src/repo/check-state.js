@@ -26,6 +26,20 @@ function checkState(state) {
       return `state.items[${i}].empId 指向不存在的员工`;
     }
   }
+  /* 番茄钟会话可缺省；存在时必须是挂在有效待办上的形状合法对象。 */
+  if (state.pomoRun !== undefined) {
+    const r = state.pomoRun;
+    if (!r || typeof r !== 'object' || Array.isArray(r)) return 'state.pomoRun 不是对象';
+    if (!state.items.some(it => it.id === r.itemId)) {
+      return 'state.pomoRun.itemId 指向不存在的待办';
+    }
+    if (r.kind !== 'focus' && r.kind !== 'break') return 'state.pomoRun.kind 必须是 focus 或 break';
+    if (!Number.isFinite(r.endAt) || !Number.isFinite(r.leftMs)) {
+      return 'state.pomoRun.endAt/leftMs 必须是数字';
+    }
+    if (!Number.isSafeInteger(r.cycle) || r.cycle < 0) return 'state.pomoRun.cycle 必须是非负整数';
+    if (typeof r.paused !== 'boolean') return 'state.pomoRun.paused 必须是布尔值';
+  }
   return null;
 }
 
