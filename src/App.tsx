@@ -86,7 +86,7 @@ export default function App() {
         const todays = items.filter(i => i.due && midnight(i.due) <= TODAY)
         const doneN = todays.filter(i => i.done).length
         return Tool.poster({
-          brand: '待办事项',
+          brand: 'AI日程大管家',
           title: fmtDate(Date.now()),
           subtitle: '今天要做的事',
           hero: {
@@ -97,7 +97,7 @@ export default function App() {
             .map(i => [i.t.length > 16 ? i.t.slice(0, 16) + '…' : i.t, dueText(i) || '—']),
           note: items.filter(i => statusOf(i) !== 2 && i.due && midnight(i.due) < TODAY).length
             ? '有逾期事项，先清掉它们。' : '',
-          footer: '待办事项 · TODO',
+          footer: 'AI日程大管家',
         })
       },
     })
@@ -274,7 +274,7 @@ export default function App() {
                       const todays = st.items.filter(i => i.due && midnight(i.due) <= TODAY)
                       const doneN = todays.filter(i => i.done).length
                       Tool.poster({
-                        brand: '待办事项',
+                        brand: 'AI日程大管家',
                         title: fmtDate(Date.now()),
                         subtitle: '今天要做的事',
                         hero: {
@@ -285,7 +285,7 @@ export default function App() {
                           .map(i => [i.t.length > 16 ? i.t.slice(0, 16) + '…' : i.t, dueText(i) || '—']),
                         note: st.items.filter(i => statusOf(i) !== 2 && i.due && midnight(i.due) < TODAY).length
                           ? '有逾期事项，先清掉它们。' : '',
-                        footer: '待办事项 · TODO',
+                        footer: 'AI日程大管家',
                       })
                     }} />}
 

@@ -48,7 +48,7 @@ export default function Sidebar({ items, view, tag, onNav, onTag, themeHost }: {
       <div className="sidebrand">
         <span className="mark">{ICO.check}</span>
         <div>
-          <b>ToDo · 待办</b>
+          <b>AI日程大管家</b>
           <span>任务与日历</span>
         </div>
       </div>
