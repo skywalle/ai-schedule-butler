@@ -25,6 +25,12 @@ function checkState(state) {
     if (it.empId !== undefined && !empIds.has(it.empId)) {
       return `state.items[${i}].empId 指向不存在的员工`;
     }
+    if (it.execEmpId !== undefined && !empIds.has(it.execEmpId)) {
+      return `state.items[${i}].execEmpId 指向不存在的员工`;
+    }
+    if (it.subEmpId !== undefined && !empIds.has(it.subEmpId)) {
+      return `state.items[${i}].subEmpId 指向不存在的员工`;
+    }
   }
   /* 番茄钟会话可缺省；存在时必须是挂在有效待办上的形状合法对象。 */
   if (state.pomoRun !== undefined) {

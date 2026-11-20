@@ -1,11 +1,10 @@
 /* 完成热力格的数据。
  *
  * 左边那本月历回答的是「前面还堆着多少」，这块格子回答的是反方向的那个问题：
- * 「过去这些天，我到底做掉了多少」。清单本身答不了 —— 勾掉的事被「清理已完成」
- * 一按就没了，只靠 items 画出来的是一整片空白。所以除今天以外的每一天都由固定
- * 种子生成，今天那一格永远从真实清单里数：勾掉一件，最后一格立刻变深。
+ * 「过去这些天，我到底做掉了多少」。每一天都只从真实清单里数：勾掉的事
+ * 带完成时间，落在窗口内的就计入当天。今天那一格永远实时：勾掉一件，
+ * 最后一格立刻变深。
  */
-import Kit from './kit.js';
 import { DAY, TODAY, midnight, wdOf } from './todo.js';
 
 export const WEEKS = 18;
@@ -16,23 +15,9 @@ const MON = (wdOf(TODAY) + 6) % 7;
 export const DAYS = Array.from({ length: WEEKS * 7 },
   (_, k) => midnight(TODAY - (MON + (WEEKS - 1) * 7) * DAY + k * DAY));
 
-const SEEDED = (() => {
-  const r = Kit.rng(0x7ad0), h = {};
-  for (const ts of DAYS) {
-    if (ts >= TODAY) break;
-    const wd = wdOf(ts), rest = wd === 0 || wd === 6;
-    /* 「有没有做事」和「做了多少」得是两次独立的抽签。同一个 x 既定生死又定
-       大小的话，活下来的那些天全挤在阈值上方，整块格子会是一片均匀的中绿。
-       y*y 把分布压向低位：多数日子一两件，偶尔一天九件，这才像人过的日子。 */
-    const x = r(), y = r();
-    h[ts] = x < (rest ? .6 : .24) ? 0 : Math.ceil(y * y * (rest ? 3.5 : 8.5));
-  }
-  return h;
-})();
-
-/* 种子是底子，真实勾掉的事加在上面：昨天补勾的一件也会让昨天那格变深。 */
+/* 每天的天数只从真实清单里数：勾掉一件，那一格立刻变深。 */
 export function counts(items) {
-  const c = { ...SEEDED };
+  const c = /** @type {Record<number, number>} */ ({});
   items.forEach(i => {
     if (!i.done || !i.at) return;
     const d = midnight(i.at);

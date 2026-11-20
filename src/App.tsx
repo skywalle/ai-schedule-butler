@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Kit from './lib/kit.js'
 import Tool from './lib/tool.js'
 import { editItem, newItem } from './lib/edit.js'
-import { SORTS, TODAY, DAY, dueText, fmtDate, midnight, seed, statusOf, tagListOf, visible } from './lib/todo.js'
+import { SORTS, TODAY, DAY, dueText, emptyState, fmtDate, midnight, statusOf, tagListOf, visible } from './lib/todo.js'
 import { getBreakMin, makeBreakRun, makeFocusRun, nextFocusRun, reviveRun } from './lib/pomo.js'
 import { getState, putState } from './lib/api'
 import type { Item, State } from './lib/types'
@@ -12,6 +12,7 @@ import Kanban from './components/Kanban'
 import List from './components/List'
 import BigCalendar from './components/BigCalendar'
 import Progress from './components/Progress'
+import Feed from './components/Feed'
 import Team from './components/Team'
 import Planner from './components/Planner'
 import PomoDock, { type PomoCtl } from './components/PomoDock'
@@ -28,8 +29,8 @@ const norm = (s: State | null): State | null =>
         items: s.items.map(i => ({ ...i, tagList: i.tagList || (i.g ? [i.g] : []) })) } : s
 
 export default function App() {
-  const [st, setSt] = useState<State>(() => norm(store.get()) || (seed() as State))
-  const [view, setView] = useState('board')      // today | board | list | cal | prog | team
+  const [st, setSt] = useState<State>(() => norm(store.get()) || (emptyState() as State))
+  const [view, setView] = useState('board')      // today | board | list | cal | prog | feed | team
   const [listMode, setListMode] = useState('flow') // flow | all
   const [tag, setTag] = useState('')             // '' = 全部关键字
   const [filter, setFilter] = useState('all')
@@ -236,7 +237,7 @@ export default function App() {
   const pomoCtl: PomoCtl = { run: st.pomoRun, pause: togglePausePomo, finish: finishPomoEarly,
                              drop: dropPomo, next: nextPomo, end: onPhaseEnd }
 
-  const titles: Record<string, string> = { today: '规划', board: '象限', list: '清单', cal: '日历', prog: '进度', team: '人员' }
+  const titles: Record<string, string> = { today: '规划', board: '象限', list: '清单', cal: '日历', prog: '进度', feed: '动态', team: '人员' }
 
   return (
     <div className={'app v-' + view}>
@@ -393,6 +394,8 @@ export default function App() {
                         footer: 'AI日程大管家',
                       })
                     }} />}
+
+          {view === 'feed' && <Feed items={scoped} empList={empList} empMap={empMap} deptMap={deptMap} onEdit={edit} />}
 
           {view === 'team' && <Team items={st.items} deptList={deptList} empList={empList} onPatch={patch} />}
         </div>

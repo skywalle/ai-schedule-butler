@@ -36,7 +36,6 @@ export default function Progress({ items, onClear, onExportCSV, onExportPoster }
     <div className="prog2">
       {/* 左侧主内容：热力 + 周统计 + 分组进度 */}
       <div className="prog-main">
-        <div className="prog-note">历史记录为示例数据 · 今日完成实时更新</div>
         <Heat items={items} />
         <div className="grouphead"><span>这一周</span></div>
         <div className="wkstat">

@@ -63,7 +63,11 @@ export default function Team({ items, deptList, empList, onPatch }: {
       deptList: (s.deptList || []).filter(x => x.id !== d.id),
       empList: (s.empList || []).filter(x => x.deptId !== d.id),
       items: s.items.map(i => (i.deptId === d.id || (i.empId != null && deadEmp.has(i.empId)))
-        ? { ...i, deptId: undefined, empId: undefined } : i),
+        ? {
+            ...i, deptId: undefined, empId: undefined,
+            execEmpId: i.execEmpId != null && deadEmp.has(i.execEmpId) ? undefined : i.execEmpId,
+            subEmpId: i.subEmpId != null && deadEmp.has(i.subEmpId) ? undefined : i.subEmpId,
+          } : i),
     }))
     Kit.toast('已删除部门')
   }
@@ -83,7 +87,13 @@ export default function Team({ items, deptList, empList, onPatch }: {
     onPatch(s => ({
       ...s,
       empList: (s.empList || []).filter(x => x.id !== e.id),
-      items: s.items.map(i => i.empId === e.id ? { ...i, empId: undefined } : i),
+      items: s.items.map(i => (i.empId === e.id || i.execEmpId === e.id || i.subEmpId === e.id)
+        ? {
+            ...i,
+            empId: i.empId === e.id ? undefined : i.empId,
+            execEmpId: i.execEmpId === e.id ? undefined : i.execEmpId,
+            subEmpId: i.subEmpId === e.id ? undefined : i.subEmpId,
+          } : i),
     }))
     Kit.toast('已删除员工')
   }

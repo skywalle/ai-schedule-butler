@@ -92,19 +92,23 @@ export default function List({ items, filter, sort, empMap, deptMap, emptyHint, 
           <div className="grouphead"><span>{g}</span><span className="n">{groups[g].length}</span></div>
           {groups[g].map(i => {
             const who = i.empId ? empMap.get(i.empId) : i.deptId ? deptMap.get(i.deptId) : ''
+            const execWho = i.execEmpId ? empMap.get(i.execEmpId) : ''
+            const subWho = i.subEmpId ? empMap.get(i.subEmpId) : ''
             return (
             <div key={i.id} className={'item' + (i.done ? ' done' : '')} data-id={i.id}>
               <button className="box" type="button" aria-label="完成"
                       onClick={e => { e.stopPropagation(); onToggle(i) }}>{CHECK}</button>
               <div className="body" onClick={() => onEdit(i)}>
                 <div className="txt">{i.t}</div>
-                {(tagListOf(i).length || i.due || who || quadOf(i) !== 4) && (
+                {(tagListOf(i).length || i.due || who || execWho || subWho || quadOf(i) !== 4) && (
                   <div className="meta">
                     {quadOf(i) !== 4 ? (
                       <i className="qmark" title={['','重要且紧急','重要不紧急','紧急不重要','不重要不紧急'][quadOf(i)]}
                          style={{ background: ['','var(--neg)','var(--accent)','var(--warn)','var(--faint)'][quadOf(i)] }} />
                     ) : null}
                     {who ? <span className="tag who">{who}</span> : null}
+                    {execWho ? <span className="tag who">{'执行:' + execWho}</span> : null}
+                    {subWho ? <span className="tag who">{'提交:' + subWho}</span> : null}
                     {tagListOf(i).map((kw: string) => <span className="tag" key={kw}>{kw}</span>)}
                     {i.due ? (
                       <span className={'due' + (midnight(i.due) < TODAY && !i.done ? ' late'

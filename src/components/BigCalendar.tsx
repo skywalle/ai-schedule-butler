@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Tool from '../lib/tool.js'
 import { DAY, TODAY, WD, dayTs, fmtDate, midnight, quadOf, shYmd, statusOf, tagListOf, wdOf } from '../lib/todo.js'
+import { getInfoHoliday } from '../lib/holiday'
 import type { Item } from '../lib/types'
 
 const GRIP = (
@@ -124,6 +125,11 @@ export default function BigCalendar({ items, empMap, deptMap, onEdit, onReschedu
   const [sel, setSel] = useState(TODAY)
 
   const [y, m] = shYmd(cur)
+  /* 月份加减：dayTs 遇到 13 月 / 0 月会返回 NaN，跨年要自己进位。 */
+  const shiftMonth = (yy: number, mm: number, dm: number) => {
+    const t = mm + dm
+    return dayTs(yy + Math.floor(t / 12), ((t % 12) + 12) % 12, 1)
+  }
   const start = cur - ((wdOf(cur) + 6) % 7) * DAY   // 网格从当月首个周一拉起
   const days: number[] = []
   for (let k = 0; k < 42; k++) days.push(start + k * DAY)
@@ -133,6 +139,7 @@ export default function BigCalendar({ items, empMap, deptMap, onEdit, onReschedu
     .filter(i => i.due && midnight(i.due) === ts)
     .sort((a, b) => statusOf(a) - statusOf(b) || quadOf(a) - quadOf(b))
   const todayList = onDay(sel)
+  const selHol = getInfoHoliday(sel)
   const other = todayList.filter(i => statusOf(i) !== 2)
   const thisM = (ts: number) => shYmd(ts)[1] === m
 
@@ -140,10 +147,11 @@ export default function BigCalendar({ items, empMap, deptMap, onEdit, onReschedu
     <div className="bigcal">
       <div className="bchead">
         <b>{y + ' 年 ' + (m + 1) + ' 月'}</b>
+        <span className="bclegend"><i className="lg hol" />假日<i className="lg wk" />调休上班</span>
         <span className="spacer" />
-        <button className="miniib" onClick={() => setCur(dayTs(y, m - 1, 1))}>‹</button>
+        <button className="chip" onClick={() => setCur(shiftMonth(y, m, -1))}>上一月</button>
         <button className="chip" onClick={() => { const [ty, tm] = shYmd(TODAY); setCur(dayTs(ty, tm, 1)); setSel(TODAY) }}>今天</button>
-        <button className="miniib" onClick={() => setCur(dayTs(y, m + 1, 1))}>›</button>
+        <button className="chip" onClick={() => setCur(shiftMonth(y, m, 1))}>下一月</button>
       </div>
 
       <div className="bcgridwrap">
@@ -152,11 +160,20 @@ export default function BigCalendar({ items, empMap, deptMap, onEdit, onReschedu
           {days.map(ts => {
             const list = onDay(ts)
             const over = list.filter(i => statusOf(i) !== 2).length
+            const hol = getInfoHoliday(ts)
             return (
               <div key={ts}
-                   className={'bccell' + (ts === TODAY ? ' today' : '') + (ts === sel ? ' sel' : '') + (!thisM(ts) ? ' out' : '')}
+                   className={'bccell'
+                     + (ts === TODAY ? ' today' : '')
+                     + (ts === sel ? ' sel' : '')
+                     + (!thisM(ts) ? ' out' : '')
+                     + (hol ? (hol.off ? ' hol' : ' work') : '')}
+                   title={hol ? hol.name + (hol.off ? '' : '（调休上班）') : undefined}
                    onClick={() => setSel(ts)}>
-                <div className="bcd">{shYmd(ts)[2]}</div>
+                <div className="bcd">{shYmd(ts)[2]}
+                  {hol && hol.off ? <span className="bchol">{hol.name}</span> : null}
+                  {hol && !hol.off ? <i className="bcwk">班</i> : null}
+                </div>
                 <div className="bcs">
                   {list.slice(0, 3).map(i => (
                     <div key={i.id} className={'bcstrip' + (statusOf(i) === 2 ? ' done' : '')}>
@@ -179,6 +196,7 @@ export default function BigCalendar({ items, empMap, deptMap, onEdit, onReschedu
       <div className="bcpanel">
         <div className="bcphead">
           <b>{fmtDate(sel)}</b>
+          {selHol ? <span className={'tag' + (selHol.off ? ' hol' : ' work')}>{selHol.name}{selHol.off ? '' : '（调休上班）'}</span> : null}
           <span className="spacer" />
           <span className="n">{other.length ? other.length + ' 件待办' : '这一天没有待办'}</span>
         </div>

@@ -294,6 +294,8 @@ body { overscroll-behavior-y: none }
 .calpop-grid .d:hover { background: var(--raised); border-color: var(--line) }
 .calpop-grid .d.out { opacity: .32 }
 .calpop-grid .d.today { color: var(--accent); font-weight: 600 }
+.calpop-grid .d.hol { color: var(--hol); background: var(--hol-soft) }
+.calpop-grid .d.work { color: var(--muted); background: var(--work-soft) }
 .calpop-grid .d.on { background: var(--accent); color: var(--panel); font-weight: 600 }
 
 /* Chips live in horizontally-scrolling rows; letting a two-word Chinese label

@@ -125,7 +125,7 @@ src/
   components/           Sidebar / Board / Kanban / List / BigCalendar / Progress
   lib/
     api.ts              服务端状态同步客户端
-    todo.js             纯逻辑：解析、分桶、排序、种子数据
+    todo.js             纯逻辑：解析、分桶、排序、空初始状态
     heat.js             18 周热力格数据
     edit.js             编辑抽屉
     kit.js              主题、图表、toast、CSV

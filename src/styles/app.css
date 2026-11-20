@@ -5,6 +5,7 @@
   --muted:#69675c; --faint:#a4a196; --line:#e5e3da; --line-soft:#efeee7;
   --accent:#1f5c46; --accent-ink:#ffffff; --accent-soft:#e3ede9;
   --pos:#1f5c46; --neg:#b3402c; --warn:#a97516;
+  --hol:#b3402c; --hol-soft:#f6e9e3; --work-soft:#eae8df;
   --h0:#e7e5db; --h1:#cfe0d6; --h2:#9cc4b0; --h3:#5b9a7e; --h4:#1f5c46;
   --r:9px; --side-w:232px;
 }
@@ -12,6 +13,7 @@
   --bg:#0f0f0d; --panel:#171714; --raised:#1e1e1a; --ink:#eceade;
   --muted:#918e80; --faint:#615f55; --line:#2a2924; --line-soft:#20201c;
   --accent:#65b394; --accent-ink:#0c1a15; --accent-soft:#16241f;
+  --hol:#d98d6f; --hol-soft:#2b1d17; --work-soft:#1e1e1a;
   --h0:#232320; --h1:#1e3a30; --h2:#2d5c49; --h3:#448069; --h4:#65b394;
 }
 
@@ -280,6 +282,23 @@
 .bcphead{ display:flex; align-items:center; gap:8px; padding:12px 16px;
   border-bottom:1px solid var(--line-soft); font-size:14px }
 .bcphead .n{ font-size:12px; color:var(--faint) }
+/* 节假日与调休：假日红底 + 节日名；调休上班日灰底 + 「班」角标 */
+.bccell.hol{ background:var(--hol-soft) }
+.bccell.hol .bcd{ color:var(--hol) }
+.bccell.work{ background:var(--work-soft) }
+.bcd{ display:flex; align-items:baseline; gap:4px }
+.bchol{ font-size:10px; color:var(--hol); min-width:0; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap }
+.bcwk{ font-style:normal; font-size:9px; line-height:1; color:var(--muted);
+  border:1px solid var(--line); border-radius:3px; padding:1px 3px; flex:none }
+.bclegend{ display:inline-flex; align-items:center; gap:5px; font-size:10.5px;
+  color:var(--faint); margin-left:4px }
+.bclegend .lg{ width:7px; height:7px; border-radius:50%; flex:none }
+.bclegend .lg.hol{ background:var(--hol) }
+.bclegend .lg.wk{ background:var(--faint) }
+.bcphead .tag{ font-family:var(--mono); font-size:11px; border:1px solid var(--line);
+  border-radius:3px; padding:0 5px; color:var(--muted) }
+.bcphead .tag.hol{ color:var(--hol); border-color:color-mix(in srgb, var(--hol) 40%, transparent) }
 .bcpanel .item .body{ cursor:pointer }
 .bcpanel .item .handle{ flex:none; width:24px; align-self:stretch;
   display:grid; place-items:center; color:var(--line); cursor:grab; touch-action:none }
@@ -554,3 +573,47 @@
 .kcard .pbox:hover{ border-color:var(--accent); color:var(--accent) }
 .kcard.done .pbox{ border-color:var(--accent); background:var(--accent); color:var(--accent-ink) }
 .tag.doing{ color:var(--accent); border-color:color-mix(in srgb, var(--accent) 40%, transparent) }
+
+/* ── 动态页：完成时间线 ──────────────────────────────────────────────────
+   主列按天分组，头像一列被竖发丝线串起，每个头像就是一个时间节点。
+   右栏是本周概览 + 近 7 天完成榜，与进度/人员页同构。 */
+.feed2{ display:grid; grid-template-columns:1fr 320px; gap:24px; padding:16px 20px 20px;
+        width:100%; align-items:start }
+@media (min-width:1400px){ .feed2{ padding:20px 32px 24px; gap:32px } }
+@media (max-width:900px){ .feed2{ grid-template-columns:1fr; gap:16px } }
+.feed-main,.feed-side{ min-width:0 }
+.feed-filter{ padding:2px 2px 6px }
+.feed-none{ font-size:12px; color:var(--faint); padding:8px 2px }
+.feed-dayhead{ padding-left:2px }
+.fdlist{ position:relative; padding:2px 0 8px }
+.fdlist::before{ content:''; position:absolute; left:13px; top:18px; bottom:18px;
+  width:1px; background:var(--line) }
+.fdrow{ position:relative; display:flex; gap:11px; padding:7px 6px 7px 2px;
+  border-radius:9px; cursor:pointer; transition:background var(--fast) }
+.fdrow:hover{ background:var(--raised) }
+.fdava{ flex:none; border-radius:50%; color:#fff; font-weight:600;
+  display:grid; place-items:center; position:relative; z-index:1 }
+.fdbody{ flex:1; min-width:0 }
+.fdline{ display:flex; align-items:baseline; gap:6px; font-size:13.5px; min-width:0 }
+.fdline b{ font-weight:600; flex:none }
+.fdact{ color:var(--faint); flex:none }
+.fdline .fdt{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap }
+.fdtime{ margin-left:auto; flex:none; font-family:var(--mono); font-size:11px;
+  color:var(--faint); font-variant-numeric:tabular-nums }
+.fdrow .meta{ margin-top:3px }
+.fdb{ font-size:10.5px; font-weight:500; padding:1.5px 7px; border-radius:99px; line-height:1.5 }
+.fdb.early{ color:var(--pos); background:color-mix(in srgb, var(--pos) 10%, transparent) }
+.fdb.ontime{ color:var(--accent); background:var(--accent-soft) }
+.fdb.late{ color:var(--neg); background:color-mix(in srgb, var(--neg) 10%, transparent) }
+.fdb.none{ color:var(--faint); background:var(--raised) }
+.fdpomo{ display:inline-flex; align-items:center; gap:3px }
+.fdpomo svg{ width:11px; height:11px; stroke:var(--neg); fill:none; stroke-width:1.6 }
+.fdranks{ display:flex; flex-direction:column; gap:2px; padding:2px 0 8px }
+.fdrank{ display:flex; align-items:center; gap:9px; padding:5px 0; font-size:12.5px }
+.fdrank .fdnm{ width:44px; flex:none; color:var(--muted); overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap }
+.fdrank .bar{ flex:1; height:5px; border-radius:3px; background:var(--line-soft); overflow:hidden }
+.fdrank .bar i{ display:block; height:100%; background:var(--accent); border-radius:3px }
+.fdrank .v{ font-family:var(--mono); font-size:11px; color:var(--faint);
+  width:20px; text-align:right; font-variant-numeric:tabular-nums }

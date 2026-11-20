@@ -89,6 +89,8 @@ function shapeItem(item, today, lib) {
     tagList: item.tagList || (item.g ? [item.g] : []),
     deptId: item.deptId || 0,
     empId: item.empId || 0,
+    execEmpId: item.execEmpId || 0,
+    subEmpId: item.subEmpId || 0,
     note: item.note || '',
     pomo: item.pomo || 0,
   };
@@ -223,7 +225,7 @@ function buildServer() {
   }));
 
   server.registerTool('patchItemTodo', {
-    description: '按 id 修改标题、日期、象限、关键字、备注；未传字段保持不变；due 传空字符串清除日期。',
+    description: '按 id 修改标题、日期、象限、关键字、备注、执行员工、提交员工；未传字段保持不变；due 传空字符串清除日期；execEmpId/subEmpId 传 0 清除。',
     inputSchema: {
       id: z.number().int(),
       t: z.string().min(1).optional(),
@@ -231,6 +233,8 @@ function buildServer() {
       quad: z.number().int().min(1).max(4).optional(),
       tagList: z.array(z.string()).optional(),
       note: z.string().optional(),
+      execEmpId: z.number().int().min(0).optional().describe('执行员工 id，0 表示清除'),
+      subEmpId: z.number().int().min(0).optional().describe('提交员工 id，0 表示清除'),
     },
   }, serial(async (args) => {
     const lib = await loadTodoLib();
@@ -241,6 +245,14 @@ function buildServer() {
     if (args.quad !== undefined) item.quad = args.quad;
     if (args.tagList !== undefined) item.tagList = args.tagList;
     if (args.note !== undefined) item.note = args.note;
+    if (args.execEmpId !== undefined) {
+      if (args.execEmpId) item.execEmpId = findEmp(state, args.execEmpId).id;
+      else delete item.execEmpId;
+    }
+    if (args.subEmpId !== undefined) {
+      if (args.subEmpId) item.subEmpId = findEmp(state, args.subEmpId).id;
+      else delete item.subEmpId;
+    }
     await saveState(state);
     return textOf({ updated: shapeItem(item, lib.midnight(Date.now()), lib) });
   }));

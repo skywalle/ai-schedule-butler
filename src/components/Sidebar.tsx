@@ -8,11 +8,13 @@ const ICO = {
   list: <svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>,
   cal: <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>,
   prog: <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>,
+  feed: <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>,
   team: <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5M16 5.2a3 3 0 1 1 0 5.8M17.6 14.8c2 .4 3.1 1.8 3.4 4.2"/></svg>,
   check: <svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg>,
   moon: <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>,
 }
 const NAV = [
+  { id: 'feed', n: '动态' },
   { id: 'today', n: '规划' },
   { id: 'board', n: '象限' },
   { id: 'list', n: '清单' },
@@ -39,6 +41,8 @@ export default function Sidebar({ items, view, tag, onNav, onTag, themeHost }: {
   const open = items.filter(i => statusOf(i) !== 2).length
   /* 「规划」角标：逾期且未完成的数量，是规划页左列的压力指标。 */
   const todayOpen = items.filter(i => statusOf(i) !== 2 && i.due && midnight(i.due) < TODAY).length
+  /* 「动态」角标：今天勾掉了几件。 */
+  const todayDone = items.filter(i => i.done && i.at && midnight(i.at) === TODAY).length
   /* 关键字聚合：多关键字的 todo 在每个关键字下都计数。 */
   const tagEntryList = Object.entries(
     items.reduce((m: Record<string, number>, i) => {
@@ -64,7 +68,8 @@ export default function Sidebar({ items, view, tag, onNav, onTag, themeHost }: {
             {ICO[v.id as keyof typeof ICO]}
             <span>{v.n}</span>
             {v.id === 'today' ? <i className="cnt">{todayOpen}</i>
-              : v.id === 'list' ? <i className="cnt">{open}</i> : null}
+              : v.id === 'list' ? <i className="cnt">{open}</i>
+              : v.id === 'feed' ? <i className="cnt">{todayDone}</i> : null}
           </button>
         ))}
       </nav>

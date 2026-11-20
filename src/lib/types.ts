@@ -7,6 +7,10 @@ export interface Item {
   g?: string
   deptId?: number
   empId?: number
+  /** 执行员工：实际执行这条任务的人。 */
+  execEmpId?: number
+  /** 提交员工：提交这条任务的人。 */
+  subEmpId?: number
   quad?: 1 | 2 | 3 | 4
   status?: 0 | 1 | 2
   done: boolean

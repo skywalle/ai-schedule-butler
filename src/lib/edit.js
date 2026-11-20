@@ -3,6 +3,7 @@
 import Kit from './kit.js';
 import Tool from './tool.js';
 import { DAY, QUADS, STATUSES, TODAY, WD, dayTs, fmtDate, quadOf, shYmd, statusOf, wdOf } from './todo.js';
+import { getInfoHoliday } from './holiday';
 
 const T = Tool, K = Kit;
 
@@ -155,6 +156,8 @@ export function taskSheet({ title, item, preset = {}, deptList = [], empList = [
       if (shYmd(ts)[1] !== calM) cell.classList.add('out');
       if (ts === TODAY) cell.classList.add('today');
       if (dt.value === fmtDate(ts)) cell.classList.add('on');
+      const hol = getInfoHoliday(ts);
+      if (hol){ cell.classList.add(hol.off ? 'hol' : 'work'); cell.title = hol.name + (hol.off ? '' : '（调休上班）') }
       cell.onclick = () => pick(ts);
       grid.appendChild(cell);
     }
@@ -221,6 +224,28 @@ export function taskSheet({ title, item, preset = {}, deptList = [], empList = [
     fDept.appendChild(T.el('div', { class:'whohint', text:'还没有部门，去「人员」页添加' }));
   }
 
+  /* 执行员工 / 提交员工：独立于部门指派的两个员工维度，不随部门级联，0 表示未设置。 */
+  const mkEmpRow = (label, initialId) => {
+    let id = initialId || 0;
+    const f = T.el('div', { class:'field' }, T.el('label', { text:label }));
+    const row = T.el('div', { class:'chiprow' });
+    const paint = () => {
+      row.innerHTML = '';
+      const mk = (v, name) => {
+        const c = T.el('button', { class:'chip' + (id === v ? ' on' : ''), type:'button', text:name });
+        c.onclick = () => { id = v; paint() };
+        row.appendChild(c);
+      };
+      mk(0, '无');
+      empList.forEach(e => mk(e.id, e.n));
+    };
+    paint();
+    f.appendChild(row);
+    return { el: f, getId: () => id || undefined };
+  };
+  const execRow = mkEmpRow('执行员工', base.execEmpId);
+  const subRow = mkEmpRow('提交员工', base.subEmpId);
+
   /* 状态 */
   const f4 = T.el('div', { class:'field' }, T.el('label', { text:'状态' }));
   const st = T.el('div', { class:'chiprow' });
@@ -272,7 +297,7 @@ export function taskSheet({ title, item, preset = {}, deptList = [], empList = [
 
   /* 左右双栏：基础字段两两成对，内容/详情跨整行。 */
   const form = T.el('div', { class:'taskform' });
-  form.append(f1, f2, f3, fDept, fEmp, f4, f5, f6);
+  form.append(f1, f2, f3, fDept, fEmp, execRow.el, subRow.el, f4, f5, f6);
   b.appendChild(form);
 
   /* 编辑已有任务时才有删除按钮 */
@@ -303,6 +328,8 @@ export function taskSheet({ title, item, preset = {}, deptList = [], empList = [
         tagList: tagIn.getTagList(),
         deptId: deptId || undefined,
         empId: empId || undefined,
+        execEmpId: execRow.getId(),
+        subEmpId: subRow.getId(),
         status, quad,
         done: status === 2,
         at: status === 2 ? (base.at || Date.now()) : 0,
