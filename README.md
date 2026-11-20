@@ -1,16 +1,19 @@
 # AI日程大管家
 
-自然语言录入的待办清单 + 日程管理工具。它把任务管理拆成四个视图：四象限看板、三列看板、分桶清单、月历与进度统计，数据落在服务端 MariaDB，浏览器 localStorage 只作离线缓存。任何设备打开同一地址，看到的是同一份清单。
+自然语言录入的全栈待办清单 + 日程管理工具，中文界面。它提供七个视图：规划页、四象限看板、双模式清单、月历、进度统计、完成动态、人员管理；还内置番茄钟与节假日标注。数据落在服务端 MariaDB，浏览器 localStorage 只作离线缓存。任何设备打开同一地址，看到的是同一份清单。
 
 同时内置 MCP 服务，让 AI 助手可以直接帮你管理待办。
 
 ## 功能特性
 
-- **自然语言录入**：一行字解析优先级（`!`/`!!`/`!!!`）、四象限（重要 × 紧急）、状态、日期（今天/明天/后天/下周/月日）、分组（`#标签`）。例如：`明天 交周报 !`、`#项目 3月5日 提审 重要`
+- **自然语言录入**：一行字解析四象限（重要 × 紧急）、状态、日期（今天/明天/后天/下周/月日）、多个关键字（`#标签`）。例如：`明天 交周报 重要`、`#项目 3月5日 提审 紧急`
+- **规划页**：今日待办的专注视图，页内输入回车即添加
 - **四象限看板**：艾森豪威尔矩阵，象限与列名可重命名
 - **三列看板**：待完成 / 进行中 / 已完成，支持拖拽排序（pointer events，移动端可用）
 - **分桶清单**：逾期 / 今天 / 明天 / 以后 / 没排期 / 已完成，支持筛选与四种排序
-- **月历视图**：总览与改期
+- **月历视图**：总览与改期，标注放假日与调休日（内置国务院放假安排数据）
+- **完成动态**：按时间线展示谁完成了哪件任务，以及相对到期日提前 / 逾期几天
+- **番茄钟**：25 分钟专注、5 分钟休息、每 4 个一轮长休；会话随整状态同步，刷新与换标签页可续跑；卡片内嵌与悬浮坞两种形态
 - **进度统计**：四项计数、近 7 天柱图、18 周完成热力格
 - **团队管理**：部门与员工的增删改，任务可指派到部门与员工
 - **导出**：CSV 导出、Canvas 生成的完成海报
@@ -27,9 +30,10 @@
 | 后端框架 | Fastify | 5 |
 | 数据库驱动 | mysql2/promise | 3 |
 | 数据库 | MariaDB（MySQL 协议） | 11 |
+| 时区处理 | luxon（锁死 Asia/Shanghai） | 3 |
 | 字体 | Geist 可变字体 | — |
 
-前端是 ESM，后端按 CommonJS 编写。
+前端是 ESM，后端按 CommonJS 编写。业务时间戳一律表示上海 wall-clock 的绝对毫秒，浏览器和服务器设成别的时区，「今天 / 逾期」也不漂。
 
 ## 快速开始
 
@@ -79,11 +83,20 @@ npm run dev:server  # 后端 Fastify，node --watch 自动重启
 | `MYSQL_DATABASE` | `ai-schedule-butler` | 库名 |
 | `MYSQL_CONNECTION_LIMIT` | `5` | 连接池上限 |
 
+### 辅助脚本
+
+```bash
+npm run holiday   # 更新放假数据（每年跑一次，需访问网络）
+node scripts/import-super-productivity.mjs <备份.json> [--dry]   # 导入 Super Productivity 收件箱任务；--dry 只打印统计
+```
+
+网站本身离线可用，只有更新放假数据和导入旧数据需要跑脚本。
+
 ## API 一览
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET | `/api/health` | 数据库探活，返回本地时间 |
+| GET | `/api/health` | 数据库探活，返回上海时区本地时间 |
 | GET | `/api/state` | 拉取全量状态；无数据返回 `{"state": null}` |
 | PUT | `/api/state` | 整体保存状态；校验失败返回 400 与字段级错误 |
 
@@ -108,7 +121,7 @@ node <项目路径>/server/src/mcp/server.js
 | 工具 | 说明 |
 | --- | --- |
 | `getListTodo` | 按状态、日期桶、关键字、象限、部门、员工过滤读取 |
-| `addItemTodo` | 自然语言新增，如「明天 交周报 !」 |
+| `addItemTodo` | 自然语言新增，如「明天 交周报 重要」 |
 | `setStatusTodo` | 修改状态：待完成 / 进行中 / 已完成 |
 | `patchItemTodo` | 改标题、日期、优先级、象限、关键字、备注 |
 | `setAssignTodo` | 指派到部门或员工 |
@@ -122,19 +135,26 @@ index.html              入口
 src/
   main.tsx              React 挂载
   App.tsx               壳：侧边栏、视图切换、同步逻辑、导出
-  components/           Sidebar / Board / Kanban / List / BigCalendar / Progress
+  components/           Sidebar / Planner / Board / Kanban / List /
+                        BigCalendar / Progress / Feed / Team / PomoDock
   lib/
     api.ts              服务端状态同步客户端
-    todo.js             纯逻辑：解析、分桶、排序、空初始状态
+    todo.js             纯逻辑：上海时区日期换算、解析、分桶、种子数据
+    pomo.js             番茄钟纯逻辑：时长常量、番茄数、会话工厂
+    holiday.ts          节假日查询：放假日与调休，Map 索引
+    holiday-data.json   国务院放假安排数据
     heat.js             18 周热力格数据
     edit.js             编辑抽屉
     kit.js              主题、图表、toast、CSV
     tool.js             海报、分享链接、屏幕栈、store
-    types.ts            Item / State 类型
+    types.ts            Item / PomoRun / State 类型
   styles/               kit.css（token）→ tool.css（壳）→ app.css（页面）
+scripts/                辅助脚本（ESM）
+  fetch-holiday.mjs     更新放假数据
+  import-super-productivity.mjs  导入 Super Productivity 备份
 server/                 Fastify 后端（CommonJS）
   src/config.js         环境变量配置（带默认值）
-  src/common.js         toSafeInt、formatLocalDateTime
+  src/common.js         toSafeInt、formatLocalDateTime（luxon，上海时区）
   src/db.js             连接池 + 幂等建表
   src/repo/state.js     loadState / upsertState
   src/route/state.js    /api 路由 + 入参校验
@@ -145,7 +165,7 @@ public/fonts/           Geist 字体
 
 ## 截图
 
-> 待补充：四象限看板、月历视图、进度统计。
+> 待补充：规划页、四象限看板、月历（含节假日标注）、完成动态、番茄钟。
 
 ## 已知限制
 

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { DAY, TODAY, fmtDayCn, fmtTime, midnight, statusOf, tagListOf } from '../lib/todo.js'
 import { gcolor } from './Sidebar'
-import type { Emp, Item } from '../lib/types'
+import type { Dept, Emp, Item } from '../lib/types'
 
 const CHECK = <svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5" /></svg>
 const TOMATO = (
@@ -19,6 +19,9 @@ interface Ev {
   day: number
   diff: number
 }
+
+/* 筛选条件：全部 / 某部门 / 某员工。 */
+type Filter = { kind: 'all' } | { kind: 'dept'; id: number } | { kind: 'emp'; id: number }
 
 /* 头像：姓名首字 + 按名散列的稳定底色，与关键字色同一套色板。 */
 function Ava({ name, size = 26 }: { name: string; size?: number }) {
@@ -39,14 +42,16 @@ function badgeOf(e: Ev) {
 
 /* 完成动态：按天分组的时间线流 + 右侧本周概览与近 7 天完成榜。
    只认带完成时刻的已完成项，新的在最上面。 */
-export default function Feed({ items, empList, empMap, deptMap, onEdit }: {
+export default function Feed({ items, deptList, empList, empMap, deptMap, onEdit }: {
   items: Item[]
+  deptList: Dept[]
   empList: Emp[]
   empMap: Map<number, string>
   deptMap: Map<number, string>
   onEdit: (i: Item) => void
 }) {
-  const [who, setWho] = useState(0) // 0 = 全部人员
+  /* 筛选条件：全部 / 某个部门 / 某个员工，同一时刻只生效一个。 */
+  const [filter, setFilter] = useState<Filter>({ kind: 'all' })
 
   const evList = useMemo<Ev[]>(() => {
     const list = items.filter(i => statusOf(i) === 2 && i.at).map(i => {
@@ -59,7 +64,15 @@ export default function Feed({ items, empList, empMap, deptMap, onEdit }: {
     return list
   }, [items, empMap, deptMap])
 
-  const shown = useMemo(() => who ? evList.filter(e => e.empId === who) : evList, [evList, who])
+  /* 员工 id → 部门 id：部门筛选要把执行员工属于该部门的任务也算进去。 */
+  const empDeptMap = useMemo(() => new Map(empList.map(e => [e.id, e.deptId] as [number, number])), [empList])
+
+  /* 命中规则：部门筛选用任务的直派部门或其执行员工所属部门；员工筛选用任务执行人。 */
+  const shown = useMemo(() => {
+    if (filter.kind === 'dept') return evList.filter(e => e.item.deptId === filter.id || empDeptMap.get(e.empId) === filter.id)
+    if (filter.kind === 'emp') return evList.filter(e => e.empId === filter.id)
+    return evList
+  }, [evList, filter, empDeptMap])
 
   /* 按完成当天分组；evList 已按时刻倒序，Map 插入序即组序。 */
   const dayGroupList = useMemo(() => {
@@ -111,14 +124,21 @@ export default function Feed({ items, empList, empMap, deptMap, onEdit }: {
     <div className="feed2">
       <div className="feed-main">
         <div className="chiprow feed-filter">
-          <button className={'chip' + (!who ? ' on' : '')} onClick={() => setWho(0)}>全部</button>
+          <button className={'chip' + (filter.kind === 'all' ? ' on' : '')} onClick={() => setFilter({ kind: 'all' })}>全部</button>
+          {deptList.map(d => (
+            <button key={'d' + d.id} className={'chip' + (filter.kind === 'dept' && filter.id === d.id ? ' on' : '')}
+                    onClick={() => setFilter(filter.kind === 'dept' && filter.id === d.id ? { kind: 'all' } : { kind: 'dept', id: d.id })}>{d.n}</button>
+          ))}
+          {deptList.length > 0 && empList.length > 0 && <span className="chipsep" />}
           {empList.map(e => (
-            <button key={e.id} className={'chip' + (who === e.id ? ' on' : '')}
-                    onClick={() => setWho(who === e.id ? 0 : e.id)}>{e.n}</button>
+            <button key={'e' + e.id} className={'chip' + (filter.kind === 'emp' && filter.id === e.id ? ' on' : '')}
+                    onClick={() => setFilter(filter.kind === 'emp' && filter.id === e.id ? { kind: 'all' } : { kind: 'emp', id: e.id })}>{e.n}</button>
           ))}
         </div>
 
-        {!shown.length && <div className="feed-none">这个人还没有完成记录。</div>}
+        {!shown.length && <div className="feed-none">
+          {filter.kind === 'dept' ? '这个部门还没有完成记录。' : filter.kind === 'emp' ? '这个人还没有完成记录。' : '还没有完成记录。'}
+        </div>}
 
         {dayGroupList.map(([d, list]) => (
           <div key={d}>

@@ -395,7 +395,7 @@ export default function App() {
                       })
                     }} />}
 
-          {view === 'feed' && <Feed items={scoped} empList={empList} empMap={empMap} deptMap={deptMap} onEdit={edit} />}
+          {view === 'feed' && <Feed items={scoped} deptList={deptList} empList={empList} empMap={empMap} deptMap={deptMap} onEdit={edit} />}
 
           {view === 'team' && <Team items={st.items} deptList={deptList} empList={empList} onPatch={patch} />}
         </div>
